@@ -239,64 +239,61 @@ function renderProxy(m){
 async function saveProxy(){var body={proxy_http:document.getElementById('proxy-http').value,proxy_https:document.getElementById('proxy-https').value};await post('/settings',body);toast('保存成功','success')}
 async function testProxy(){var r=await post('/test/proxy',{});var s=document.getElementById('proxy-status');if(s)s.innerHTML=r.ok?'<span class="badge badge-ok">✓ 代理可用</span>':'<span class="badge badge-err">✗ '+r.error+'</span>'}
 
-/* ====== PAN (OpenList + 115等) ====== */
+/* ====== PAN — OpenList 存储抽象层（唯一真理源） ====== */
 async function renderPan(m){
   var d=await get('/settings');
-  var mainPan=d.main_pan||'115';
-  var tabs=['OpenList','115网盘','夸克网盘','阿里云盘','123云盘','光鸭'];
-  var cur=currentPanTab||'OpenList';
-  m.innerHTML='<h1>网盘管理</h1><div class="card" style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px;font-size:13px"><strong>默认主网盘：</strong><select id="main-pan" onchange="saveMainPan()" style="width:auto;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text)">'+['115','夸克','阿里云盘','123云盘','光鸭'].map(function(p){return'<option'+(p===mainPan?' selected':'')+'>'+p+'</option>'}).join('')+'</select><span class="badge badge-ok" id="main-pan-badge">'+mainPan+'</span></div></div>'+
-    '<div class="tabs" style="flex-wrap:wrap">'+tabs.map(function(t){return'<div class="tab'+(t===cur?' active':'')+'" onclick="switchPanTab(\''+t+'\')">'+t+'</div>'}).join('')+'</div><div id="pan-content"></div>';
-  renderPanTab(cur,d);
-}
-var currentPanTab='OpenList';
-function switchPanTab(t){currentPanTab=t;showPage('pan')}
-async function saveMainPan(){var v=document.getElementById('main-pan').value;await post('/settings',{main_pan:v});document.getElementById('main-pan-badge').textContent=v;toast('主网盘已设为 '+v,'success')}
-function renderPanTab(t,d){
-  var el=document.getElementById('pan-content');if(!el)return;
-  if(t==='OpenList'){el.innerHTML='<div class="card"><h3>OpenList 引擎</h3>'+
-    '<div class="form-group"><label>服务地址</label><input id="openlist_url" value="'+(d.openlist_url||'')+'"><span class="hint">OpenList 容器地址，host网络填 http://192.168.7.154:5244</span></div>'+
-    '<div class="form-group"><label>Admin Token</label><input id="openlist_token" value="'+(d.openlist_token||'')+'"><span class="hint">打开 OpenList → 设置 → 其他 → Token（以 openlist- 开头）</span></div>'+
-    '<div class="btn-group"><button class="btn btn-primary" onclick="savePan(\'openlist\')">保存</button><button class="btn btn-secondary" onclick="testPan(\'openlist\')">测试连接</button><span id="openlist-status"></span></div></div>'}
-  else if(t==='115网盘'){el.innerHTML='<div class="card"><h3>115 网盘</h3>'+
-    '<div class="form-group"><label>Cookie</label><input id="pan115_cookie" type="password" value="'+(d.pan115_cookie||'')+'"><span class="hint">浏览器 F12 → Application → Cookies 或扫码登录获取</span></div>'+
-    '<button class="btn btn-primary" onclick="savePan(\'115\')">保存</button> <button class="btn btn-secondary" onclick="testPan(\'115\')">测试连接</button><span id="115-status"></span>'+
-    '<hr style="border-color:var(--border);margin:18px 0"><h3>📱 扫码登录（推荐）</h3><button class="btn btn-secondary" onclick="qrLogin115()">手机 115 App 扫码登录</button>'+
-    '<hr style="border-color:var(--border);margin:18px 0"><h3>💾 空间检测</h3>'+
-    '<div class="form-group"><label>剩余空间告警阈值 (%)</label><input id="pan115_threshold" value="'+(d.pan115_threshold||'10')+'" type="number" min="1" max="99"><span class="hint">当剩余空间低于此百分比时，主页显示红色警告</span></div>'+
-    '<p style="font-size:13px">已用：<strong id="pan115-used">'+(d.pan115_used||'--')+'</strong> / 总量：<strong id="pan115-total">'+(d.pan115_total||'--')+'</strong></p>'+
-    '<button class="btn btn-secondary" onclick="savePan(\'115_threshold\')">保存阈值</button> <button class="btn btn-secondary" onclick="refresh115Space()">刷新空间</button></div>'}
-  else if(t==='夸克网盘'){el.innerHTML='<div class="card"><h3>夸克网盘</h3><div class="form-group"><label>Cookie</label><input id="quark_cookie"><span class="hint">夸克网页版登录后获取 Cookie</span></div><div class="btn-group"><button class="btn btn-primary" onclick="savePan(\'quark\')">保存</button><button class="btn btn-secondary" onclick="testPan(\'quark\')">测试连接</button><span id="quark-status"></span></div></div>'}
-  else if(t==='阿里云盘'){el.innerHTML='<div class="card"><h3>阿里云盘</h3><div class="form-group"><label>Refresh Token</label><input id="aliyundrive_token"><span class="hint">https://alist.nn.ci/tool/aliyundrive/request</span></div><div class="btn-group"><button class="btn btn-primary" onclick="savePan(\'aliyundrive\')">保存</button><button class="btn btn-secondary" onclick="testPan(\'aliyundrive\')">测试连接</button><span id="aliyundrive-status"></span></div></div>'}
-  else if(t==='123云盘'){el.innerHTML='<div class="card"><h3>123云盘</h3><div class="form-group"><label>账号</label><input id="pan123_user"><span class="hint">123云盘登录账号</span></div><div class="form-group"><label>密码</label><input id="pan123_pass" type="password"></div><div class="btn-group"><button class="btn btn-primary" onclick="savePan(\'123cloud\')">保存</button><button class="btn btn-secondary" onclick="testPan(\'123cloud\')">测试连接</button><span id="123cloud-status"></span></div></div>'}
-  else if(t==='光鸭'){el.innerHTML='<div class="card"><h3>光鸭</h3><div class="form-group"><label>API Key</label><input id="guangya_apikey"><span class="hint">光鸭个人中心获取</span></div><div class="btn-group"><button class="btn btn-primary" onclick="savePan(\'guangya\')">保存</button><button class="btn btn-secondary" onclick="testPan(\'guangya\')">测试连接</button><span id="guangya-status"></span></div></div>'}
-}
-async function savePan(name){
-  var m={'openlist':['openlist_url','openlist_token'],'115':['pan115_cookie'],'115_threshold':['pan115_threshold'],'quark':['quark_cookie'],'aliyundrive':['aliyundrive_token'],'123cloud':['pan123_user','pan123_pass'],'guangya':['guangya_apikey']};
-  var body={};if(m[name]){m[name].forEach(function(k){var v=document.getElementById(k);if(v)body[k]=v.value})}
-  await post('/settings',body);toast(name+' 设置已保存','success')
-}
-async function testPan(name){var r=await post('/test/pan',{type:name});var s=document.getElementById(name+'-status');if(s)s.innerHTML=r.ok?'<span class="badge badge-ok">✓ 连接成功</span>':'<span class="badge badge-err">✗ '+(r.error||'连接失败')+'</span>'}
-async function qrLogin115(){var r=await post('/pan115/qr/start',{});if(r.ok){var img='<div style="text-align:center;padding:20px"><img src="'+r.qr_image+'" style="max-width:256px;border-radius:12px"><p style="color:var(--muted);font-size:13px;margin-top:12px">请用 115 App 扫描上方二维码</p></div>';document.getElementById('pan-content').innerHTML+=img;setTimeout(async function(){var s=await post('/pan115/qr/check',{uid:r.uid});if(s.ok&&s.status==2){document.getElementById('pan115_cookie').value='***扫码获取***';toast('115 登录成功','success');showPage('pan')}else if(s.status==1){toast('已扫描，请确认','success');setTimeout(arguments.callee,3000)}else{toast('等待扫码中...','success');setTimeout(arguments.callee,3000)}},5000)}else{toast(r.error,'error')}}
-async function refresh115Space(){var r=await get('/pan115/space');document.getElementById('pan115-used').textContent=r.used||'--';document.getElementById('pan115-total').textContent=r.total||'--';toast('空间已刷新','success')}
+  m.innerHTML='<h1>网盘管理</h1>'+
+    '<div class="card"><h3>🗄 OpenList 引擎（存储抽象层）</h3><p style="font-size:13px;color:var(--muted);margin-bottom:16px">OpenList 是网盘的统一入口。在 OpenList 中配置好 115/夸克/阿里云盘 后，X-Media 自动透传。无需在此重复配置各网盘账号密码。</p>'+
+    '<div class="form-group"><label>OpenList 服务地址</label><input id="openlist_url" value="'+(d.openlist_url||'http://openlist:5244')+'"><span class="hint">Docker Sidecar 内部地址填 http://openlist:5244；独立部署填真实 IP</span></div>'+
+    '<div class="form-group"><label>Admin Token</label><input id="openlist_token" type="password" value="'+(d.openlist_token||'')+'"><span class="hint">OpenList 后台 → 设置 → 其他 → Token（openlist- 开头）</span></div>'+
+    '<div class="btn-group"><button class="btn btn-primary" onclick="savePan()">保存</button><button class="btn btn-secondary" onclick="testPan()">测试连接</button><span id="openlist-status"></span></div></div>'+
 
-/* ====== PANSEARCH ====== */
+    '<div class="card"><h3>📂 存储路径映射</h3>'+
+    '<div class="form-group"><label>主转存盘（OpenList 挂载名称）</label><input id="main_pan" value="'+(d.main_pan||'115')+'"><span class="hint">在 OpenList 中挂载的存储名称，如 115 / quark / aliyundrive</span></div>'+
+    '<div class="form-group"><label>STRM 输出路径</label><input id="strm_output_path" value="'+(d.strm_output_path||'')+'"><span class="hint">生成的 .strm 文件存放位置</span></div>'+
+    '<button class="btn btn-primary" onclick="savePathMap()">保存路径映射</button></div>'+
+
+    '<div class="card"><h3>📱 115 网盘扫码登录</h3><p style="font-size:13px;color:var(--muted);margin-bottom:12px">115 Cookie 通过 OpenList 透传使用。扫码登录后将 Cookie 同步写入 OpenList 存储驱动。</p>'+
+    '<div class="form-group"><label>Cookie 状态</label><input id="pan115_cookie" type="password" value="'+(d.pan115_cookie||'')+'" readonly style="background:#111"><span class="hint" id="cookie-hint">'+(d.pan115_cookie?'已配置':'未配置')+'</span></div>'+
+    '<div class="btn-group"><button class="btn btn-secondary" onclick="qrLogin115()">📱 手机 115 App 扫码登录</button><button class="btn btn-secondary" onclick="checkCookieStatus()">🔍 检测 Cookie 有效性</button></div>'+
+    '<hr style="border-color:var(--border);margin:18px 0"><h4>💾 空间检测</h4>'+
+    '<div class="form-group"><label>告警阈值 (%)</label><input id="pan115_threshold" value="'+(d.pan115_threshold||'10')+'" type="number" min="1" max="99"></div>'+
+    '<p style="font-size:13px">已用：<strong id="pan115-used">--</strong> / 总量：<strong id="pan115-total">--</strong></p>'+
+    '<div class="btn-group"><button class="btn btn-secondary" onclick="saveThreshold()">保存阈值</button><button class="btn btn-secondary" onclick="refresh115Space()">刷新空间</button></div></div>'+
+
+    '<div class="card"><h3>🔗 OpenList 挂载透传</h3><p style="font-size:13px;color:var(--muted)">以下网盘通过 OpenList 自动管理，点击跳转 OpenList 配置：</p>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px">'+
+    ['115网盘','夸克网盘','阿里云盘','123云盘','光鸭','PikPak'].map(function(p){return'<a href="'+(d.openlist_url||'http://openlist:5244')+'/admin/storages" target="_blank" style="display:block;padding:12px;background:var(--panel);border-radius:10px;text-align:center;font-size:13px;color:var(--a2);text-decoration:none;border:1px solid var(--border)">'+p+' ↗</a>'}).join('')+
+    '</div></div>';
+}
+async function savePan(){
+  var body={openlist_url:document.getElementById('openlist_url').value,openlist_token:document.getElementById('openlist_token').value};
+  await post('/settings',body);toast('OpenList 设置已保存','success')
+}
+async function testPan(){var r=await post('/test/pan',{type:'openlist'});var s=document.getElementById('openlist-status');if(s)s.innerHTML=r.ok?'<span class="badge badge-ok">✓ 连接成功</span>':'<span class="badge badge-err">✗ '+(r.error||'连接失败')+'</span>'}
+async function savePathMap(){
+  var body={main_pan:document.getElementById('main_pan').value,strm_output_path:document.getElementById('strm_output_path').value};
+  await post('/settings',body);toast('路径映射已保存','success')
+}
+async function saveThreshold(){
+  await post('/settings',{pan115_threshold:document.getElementById('pan115_threshold').value});toast('阈值已保存','success')
+}
+async function checkCookieStatus(){
+  var r=await get('/pan115/cookie-status');var el=document.getElementById('cookie-hint');
+  if(el)el.textContent=r.ok?'✅ Cookie 有效':'❌ Cookie 已过期，请重新扫码'
+}
+
+/* ====== PANSEARCH — 动态策略路由器 ====== */
 async function renderPanSearch(m){
-  var d=await get('/settings');
-  var engines=d.pansou_enabled==='true';
   m.innerHTML='<h1>盘搜设置</h1>'+
-    '<div class="card"><h3>⚙️ 搜索引擎管理</h3><table><thead><tr><th>源名称</th><th>状态</th><th>延迟</th><th>成功率</th><th>操作</th></tr></thead><tbody id="engine-list"><tr><td colspan="5" style="color:var(--muted)">加载中...</td></tr></tbody></table>'+
-    '<div class="btn-group" style="margin-top:12px"><button class="btn btn-secondary" onclick="addEngine()">+ 添加自定义搜索源</button><button class="btn btn-secondary" onclick="speedTestAll()">🔄 手动测速</button></div></div>'+
-    '<div class="card"><h3>📐 质量过滤规则</h3>'+
-    '<div class="form-group"><label>文件大小上限 (GB)</label><input id="search-max-size" value="50" type="number"></div>'+
-    '<div class="form-group"><label>最差画质</label><select id="search-min-quality"><option>720P</option><option>1080P</option><option>4K</option></select></div>'+
-    '<div class="form-group"><label>优先级</label><div style="font-size:12px;color:var(--muted)">4K HDR → 4K → 1080P → 720P（自动排序）</div></div>'+
-    '<button class="btn btn-primary" onclick="saveSearchFilters()">保存过滤规则</button></div>'+
+    '<div class="card"><h3>🔍 搜索引擎路由器</h3><p style="font-size:12px;color:var(--muted);margin-bottom:12px">所有引擎参数（URL/Headers/正则）可热编辑，0秒生效，无需重新构建 Docker 镜像。</p>'+
+    '<table><thead><tr><th>名称</th><th>Base URL</th><th>权重</th><th>状态</th><th>操作</th></tr></thead><tbody id="engine-list"><tr><td colspan="5" style="color:var(--muted)">加载中...</td></tr></tbody></table>'+
+    '<div class="btn-group" style="margin-top:12px"><button class="btn btn-primary" onclick="showAddEngine()">+ 添加引擎</button><button class="btn btn-secondary" onclick="loadEngines()">🔄 刷新</button></div>'+
+    '<div id="engine-editor" style="display:none;margin-top:12px;background:var(--panel);padding:16px;border-radius:12px"></div></div>'+
+
     '<div class="card"><h3>⏱️ 聚合参数</h3>'+
-    '<div class="form-group"><label>最大等待时间 (秒)</label><input id="search-timeout" value="2" type="number" min="1" max="10"></div>'+
-    '<div class="form-group"><label>并发请求数</label><select id="search-concurrency"><option>3</option><option>4</option><option selected>5</option></select></div>'+
-    '<div class="form-group"><label>结果去重策略</label><div style="font-size:12px;color:var(--muted)">按文件名 + 大小哈希去重</div></div>'+
-    '<button class="btn btn-primary" onclick="saveSearchAgg()">保存聚合参数</button></div>';
+    '<div class="form-group"><label>超时时间 (秒)</label><input id="search-timeout" value="3" type="number" min="1" max="10"></div>'+
+    '<button class="btn btn-primary" onclick="saveSearchAgg()">保存</button></div>';
   loadEngines();
 }
 async function loadEngines(){
