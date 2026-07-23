@@ -1,0 +1,24 @@
+# Binaries
+/x-media-server
+*.exe
+
+# Data
+/data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Go
+vendor/
+
+# Docker
+img_cache/
+
+# Env
+.env
+! .env.example
+
+# Ignore sibling client dir
+../x-media-client/

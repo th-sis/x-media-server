@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  x-media-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: x-media-server
+    restart: unless-stopped
+    ports:
+      - "35678:35678"   # HTTP (admin panel / healthz / image proxy)
+      - "50051:50051"   # gRPC
+    environment:
+      # Server
+      - SERVER_GRPC_PORT=:50051
+      - SERVER_HTTP_PORT=:35678
+      - SERVER_EXTERNAL_URL=http://192.168.7.154:35678
+
+      # Auth (CHANGE THESE)
+      - AUTH_JWT_SECRET=${AUTH_JWT_SECRET:-x-media-jwt-secret-change-me}
+      - AUTH_ADMIN_USER=${AUTH_ADMIN_USER:-admin}
+      - AUTH_ADMIN_PASS=${AUTH_ADMIN_PASS:-admin}
+
+      # Database
+      - DB_PATH=/app/data/xmedia.db
+
+      # TMDB (set in .env)
+      - TMDB_API_KEY=${TMDB_API_KEY}
+
+      # Emby (set in .env)
+      - EMBY_SERVER_URL=${EMBY_SERVER_URL:-http://192.168.7.1:2345}
+      - EMBY_USERNAME=${EMBY_USERNAME:-xiaoya}
+      - EMBY_PASSWORD=${EMBY_PASSWORD}
+
+      # Proxy (optional)
+      - PROXY_HTTP=${PROXY_HTTP}
+      - PROXY_HTTPS=${PROXY_HTTPS}
+
+      # Log
+      - LOG_LEVEL=debug
+    volumes:
+      - ./data:/app/data                        # SQLite + STRM
+      - img_cache:/app/img_cache                # TMDB image cache
+    networks:
+      - x-media
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:35678/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  img_cache:
+
+networks:
+  x-media:
+    driver: bridge

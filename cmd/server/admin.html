@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>X-Media Server</title>
+<style>
+:root {
+  --bg:#000;--panel:#0d0d0d;--card:#141414;--accent:#6e6cf0;--a2:#a29bfe;
+  --text:#e8e8e8;--muted:#777;--border:#1f1f1f;--green:#00c853;--yellow:#ffd600;--red:#ff1744;
+  --radius:16px;--gap:14px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);margin:0
+}
+body{display:flex;min-height:100vh}
+aside{width:220px;background:var(--panel);display:flex;flex-direction:column;border-right:1px solid var(--border);padding:16px 0;flex-shrink:0}
+aside .logo{font-size:18px;font-weight:700;padding:0 16px 24px;display:flex;align-items:center;gap:8px}
+.logo svg{width:22px;height:22px;color:var(--accent)}
+.logo span{background:linear-gradient(135deg,var(--accent),var(--a2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.section{color:var(--muted);font-size:10px;text-transform:uppercase;padding:18px 16px 6px;letter-spacing:1.2px}
+.nav{padding:8px 12px;cursor:pointer;border-radius:10px;font-size:13px;margin:1px 8px;display:flex;align-items:center;gap:10px;transition:all .15s;opacity:.65}
+.nav:hover{background:rgba(110,108,240,.08);opacity:1}
+.nav.active{background:rgba(110,108,240,.18);color:var(--a2);opacity:1;font-weight:500}
+.nav svg{width:18px;height:18px;flex-shrink:0}
+main{flex:1;padding:36px 40px;overflow-y:auto;max-width:900px}
+h1{font-size:26px;margin:0 0 28px;font-weight:600;letter-spacing:-.5px}
+h3{font-size:16px;margin:0 0 16px;font-weight:500}
+.status-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:24px}
+.status-card{background:var(--card);padding:18px 20px;border-radius:var(--radius);border:1px solid var(--border)}
+.status-card .label{color:var(--muted);font-size:12px;margin-bottom:4px}
+.status-card .value{font-size:15px;font-weight:500;display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot.ok{background:var(--green);box-shadow:0 0 6px rgba(0,200,83,.4)}
+.dot.warn{background:var(--yellow);box-shadow:0 0 6px rgba(255,214,0,.4)}
+.dot.err{background:var(--red);box-shadow:0 0 6px rgba(255,23,68,.4)}
+.dot.off{background:var(--muted)}
+.alert-box{background:rgba(255,23,68,.1);border:1px solid rgba(255,23,68,.3);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px}
+.alert-box svg{width:18px;height:18px;color:var(--red);flex-shrink:0}
+.card{background:var(--card);padding:24px 28px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:16px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.form-group input,.form-group select{width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:13px;box-sizing:border-box;outline:none;transition:border .15s}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent)}
+.hint{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4}
+.btn{padding:9px 20px;border-radius:10px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#7d7bf5}
+.btn-secondary{background:var(--border);color:var(--text)}
+.btn-secondary:hover{background:#333}
+.btn-danger{background:rgba(255,23,68,.15);color:var(--red)}
+.btn-group{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.tabs{display:flex;gap:4px;margin-bottom:16px;padding:3px;background:var(--panel);border-radius:10px;flex-wrap:wrap}
+.tab{padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;transition:all .15s;opacity:.6}
+.tab:hover{background:rgba(110,108,240,.08);opacity:.8}
+.tab.active{background:rgba(110,108,240,.2);color:var(--a2);opacity:1}
+.progress-bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin:8px 0}
+.progress-bar .fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--a2));border-radius:4px;transition:width .3s}
+.badge{padding:3px 8px;border-radius:6px;font-size:11px;font-weight:500;display:inline-flex;align-items:center;gap:4px}
+.badge-ok{background:rgba(0,200,83,.12);color:var(--green)}
+.badge-err{background:rgba(255,23,68,.12);color:var(--red)}
+.badge-warn{background:rgba(255,214,0,.12);color:var(--yellow)}
+.badge-off{background:rgba(119,119,119,.12);color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
+th{color:var(--muted);font-weight:500;font-size:11px;text-transform:uppercase}
+.toast{position:fixed;top:20px;right:20px;background:var(--card);border:1px solid var(--border);padding:12px 18px;border-radius:12px;font-size:13px;z-index:999;animation:slideIn .3s;display:none}
+.toast.show{display:block}
+.toast.success{border-color:rgba(0,200,83,.4)}
+.toast.error{border-color:rgba(255,23,68,.4)}
+@keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+.hidden{display:none!important}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+<aside>
+  <div class="logo"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,1 23,12 5,23 5,14 14,12 5,10"/></svg><span>X-MEDIA</span></div>
+  <div class="section">概览</div>
+  <div class="nav active" data-page="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>系统状态</div>
+  <div class="section">基本设置</div>
+  <div class="nav" data-page="auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>账户安全</div>
+  <div class="nav" data-page="tmdb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>TMDB-API</div>
+  <div class="nav" data-page="media"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><polygon points="10,8 16,12 10,16"/></svg>自建媒体</div>
+  <div class="nav" data-page="proxy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 000 20"/></svg>代理设置</div>
+  <div class="section">高级功能</div>
+  <div class="nav" data-page="pan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7l10 5 10-5"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>网盘管理</div>
+  <div class="nav" data-page="pansearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>盘搜设置</div>
+  <div class="nav" data-page="storage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>存储管理</div>
+  <div class="nav" data-page="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>任务队列</div>
+  <div class="nav" data-page="logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>系统日志</div>
+</aside>
+<main id="content"><div style="text-align:center;padding:80px;color:var(--muted)">加载中...</div></main>
+<div id="toast" class="toast"></div>
+<script>
+/* ====== Core ====== */
+const API='/api/config',s=localStorage;
+function toast(m,t){var d=document.getElementById('toast');d.textContent=m;d.className='toast '+t+' show';setTimeout(function(){d.className='toast'},2500)}
+async function get(url){var r=await fetch(API+url,{headers:{'Authorization':'Bearer '+(s.getItem('token')||'')}});return r.json()}
+async function post(url,body){var r=await fetch(API+url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(s.getItem('token')||'')},body:JSON.stringify(body)});return r.json()}
+async function del(url){var r=await fetch(API+url,{method:'DELETE',headers:{'Authorization':'Bearer '+(s.getItem('token')||'')}});return r.json()}
+
+/* ====== Navigation ====== */
+var currentPage='';
+async function showPage(p){
+  currentPage=p;
+  document.querySelectorAll('.nav').forEach(function(n){n.classList.toggle('active',n.dataset.page===p)});
+  var m=document.getElementById('content');
+  m.innerHTML='<div style="text-align:center;padding:80px;color:var(--muted)">加载中...</div>';
+  try{
+    if(p==='dashboard')await renderDashboard(m);
+    else if(p==='auth')renderAuth(m);
+    else if(p==='tmdb')await renderTMDB(m);
+    else if(p==='media')await renderMedia(m);
+    else if(p==='proxy')renderProxy(m);
+    else if(p==='pan')await renderPan(m);
+    else if(p==='pansearch')await renderPanSearch(m);
+    else if(p==='storage')await renderStorage(m);
+    else if(p==='tasks')await renderTasks(m);
+    else if(p==='logs')renderLogs(m);
+    else m.innerHTML='<h1>'+p+'</h1><p style="color:var(--muted)">待开发</p>';
+  }catch(e){m.innerHTML='<p style="color:var(--red)">加载失败: '+e.message+'</p>'}
+}
+document.querySelectorAll('.nav').forEach(function(n){n.addEventListener('click',function(){showPage(n.dataset.page)})});
+
+/* ====== DASHBOARD ====== */
+async function renderDashboard(m){
+  var d=await get('/status');
+  var settings=await get('/settings');
+  var panStatus=settings.pan115_cookie?'configured':'unset';
+  var embyStatus=settings.emby_server_url?'configured':'unset';
+  var tmdbStatus=settings.tmdb_api_key?'configured':'unset';
+  var openlistStatus=settings.openlist_token?'configured':'unset';
+  var pansouStatus=settings.pansou_enabled==='true'?'configured':'unset';
+
+  // 115 storage check
+  var storageAlert='';
+  if(settings.pan115_threshold && settings.pan115_used){
+    var used=parseFloat(settings.pan115_used),threshold=parseFloat(settings.pan115_threshold);
+    if(used>threshold){storageAlert='<div class="alert-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>⚠ 115网盘空间不足！剩余 '+(100-used).toFixed(1)+'%，已低于阈值 '+threshold+'%。请清理或扩充空间。</div>'}
+  }
+
+  m.innerHTML='<h1>系统状态</h1>'+storageAlert+
+    '<div class="status-grid">'+
+    statusCard('中间件','running','ok')+
+    statusCard('TMDB',tmdbStatus,tmdbStatus==='configured'?'ok':'off')+
+    statusCard('Emby',embyStatus,embyStatus==='configured'?'ok':'off')+
+    statusCard('OpenList',openlistStatus,openlistStatus==='configured'?'ok':'off')+
+    statusCard('115网盘',panStatus,panStatus==='configured'?'ok':'off')+
+    statusCard('盘搜',pansouStatus,pansouStatus==='configured'?'ok':'off')+
+    statusCard('代理',settings.proxy_http?'已设置':'未设置',settings.proxy_http?'ok':'off')+
+    statusCard('版本','v'+((d||{}).version||'0.1.0'),'ok')+
+    '</div>'+
+    '<div class="card"><h3>⚡ 快速配置</h3>'+
+    quickConfig('TMDB API',settings.tmdb_api_key,'tmdb')+
+    quickConfig('OpenList 引擎',settings.openlist_url,'pan')+
+    quickConfig('115网盘 Cookie',settings.pan115_cookie,'pan')+
+    quickConfig('Emby 连接',settings.emby_server_url,'media')+
+    quickConfig('代理上网',settings.proxy_http,'proxy')+
+    '</div>';
+}
+function statusCard(label,val,cls){return '<div class="status-card"><div class="label">'+label+'</div><div class="value"><span class="dot '+cls+'"></span>'+val+'</div></div>'}
+function quickConfig(name,val,page){var ok=!!val;return'<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span>'+name+'</span><span style="color:var(--muted);margin-right:auto;margin-left:12px">'+val+'</span><span class="badge '+(ok?'badge-ok':'badge-off')+'">'+(ok?'已完成':'待配置')+'</span><a style="color:var(--accent);cursor:pointer;font-size:12px;margin-left:8px" onclick="showPage(\''+page+'\')">去配置→</a></div>'}
+
+/* ====== AUTH ====== */
+function renderAuth(m){
+  m.innerHTML='<h1>账户安全</h1><div class="card"><h3>管理员账号</h3>'+
+    '<div class="form-group"><label>用户名</label><input id="a-user" value="admin"></div>'+
+    '<div class="form-group"><label>新密码</label><input id="a-pass" type="password" placeholder="留空不修改"></div>'+
+    '<div class="btn-group"><button class="btn btn-primary" onclick="saveAuth()">保存</button></div></div>';
+}
+async function saveAuth(){
+  var u=document.getElementById('a-user').value,pass=document.getElementById('a-pass').value||'';
+  await post('/auth/password',{username:u,password:pass});toast('保存成功','success')
+}
+
+/* ====== TMDB ====== */
+async function renderTMDB(m){
+  var d=await get('/settings');
+  var key=d.tmdb_api_key||'';
+  var scrape=await get('/scrape/status');
+  var total=scrape.total||0,done=scrape.done||0,pct=total?Math.round(done/total*100):0;
+  m.innerHTML='<h1>TMDB 刮削管理</h1>'+
+    '<div class="card"><h3>TMDB API 配置</h3>'+
+    '<div class="form-group"><label>TMDB API Key</label><input id="tmdb-key" value="'+key+'" placeholder="输入 TMDB API Key"><span class="hint">https://www.themoviedb.org/settings/api</span></div>'+
+    '<div class="btn-group"><button class="btn btn-primary" onclick="saveSetting(\'tmdb_api_key\',\'tmdb-key\')">保存</button><button class="btn btn-secondary" onclick="testTMDB()">测试连接</button><span id="tmdb-status"></span></div></div>'+
+    '<div class="card"><h3>📊 刮削进度</h3>'+
+    '<p>媒体库总数：<strong>'+total+'</strong> 部 &nbsp; 已刮削：<strong>'+done+'</strong> 部</p>'+
+    '<div class="progress-bar"><div class="fill" style="width:'+pct+'%"></div></div><p style="font-size:12px;color:var(--muted)">'+pct+'% 完成</p>'+
+    '<div class="btn-group"><button class="btn btn-primary" onclick="startScrape(\'full\')">开始全量刮削</button><button class="btn btn-secondary" onclick="startScrape(\'incr\')">增量刮削</button><button class="btn btn-secondary" onclick="clearScrapeCache()">重置缓存</button></div></div>'+
+    '<div class="card"><h3>🖼 图片代理缓存</h3><p style="font-size:13px;color:var(--muted)">内存缓存：'+(scrape.imgCache||0)+' 张 · 磁盘缓存路径：/app/img_cache</p>'+
+    '<button class="btn btn-secondary" onclick="clearImgCache()">清空图片缓存</button></div>';
+}
+async function saveSetting(key,id){var v=document.getElementById(id).value;var b={};b[key]=v;await post('/settings',b);toast('保存成功','success')}
+async function testTMDB(){var r=await post('/test/tmdb',{});document.getElementById('tmdb-status').innerHTML=r.ok?'<span class="badge badge-ok">✓ 连接成功</span>':'<span class="badge badge-err">✗ '+r.error+'</span>'}
+async function startScrape(t){await post('/scrape/start',{type:t});toast('刮削任务已启动','success')}
+async function clearScrapeCache(){await post('/scrape/clear',{});toast('缓存已清除','success')}
+async function clearImgCache(){await post('/img-cache/clear',{});toast('图片缓存已清除','success')}
+
+/* ====== MEDIA ====== */
+async function renderMedia(m){
+  var tabs=['Emby','Jellyfin','Plex','SMB','WebDAV'];
+  var curTab=currentMediaTab||'Emby';
+  var d=await get('/settings');
+  m.innerHTML='<h1>自建媒体</h1><div class="tabs">'+tabs.map(function(t){return'<div class="tab'+(t===curTab?' active':'')+'" onclick="switchMediaTab(\''+t+'\')">'+t+'</div>'}).join('')+'</div><div id="media-content"></div>';
+  renderMediaTab(curTab,d);
+}
+var currentMediaTab='Emby';
+function switchMediaTab(t){currentMediaTab=t;showPage('media')}
+function renderMediaTab(t,d){
+  var el=document.getElementById('media-content');if(!el)return;
+  var meta='';
+  if(t==='Emby')meta=embayForm('emby',d,['服务器地址','用户名','密码'],['emby_server_url','emby_username','emby_password']);
+  else if(t==='Jellyfin')meta=jellyfinForm('jellyfin',d);
+  else if(t==='Plex')meta=plexForm('plex',d);
+  else if(t==='SMB')meta=smbForm(d);
+  else if(t==='WebDAV')meta=webdavForm(d);
+  el.innerHTML='<div class="card"><h3>'+t+' 连接</h3>'+meta+'</div>';
+}
+function embayForm(name,d,labels,keys){
+  var h='';for(var i=0;i<labels.length;i++){var v=d[keys[i]]||'';h+='<div class="form-group"><label>'+labels[i]+'</label><input id="'+keys[i]+'" value="'+v+'" type="'+(i===2?'password':'text')+'"></div>'}
+  return h+'<div class="btn-group"><button class="btn btn-primary" onclick="saveMedia(\''+name+'\')">保存</button><button class="btn btn-secondary" onclick="testMedia(\''+name+'\')">测试连接</button><span id="'+name+'-status"></span></div>'
+}
+function jellyfinForm(name,d){return embayForm(name,d,['服务器地址','用户名','密码'],['jellyfin_server_url','jellyfin_username','jellyfin_password'])}
+function plexForm(name,d){return'<div class="form-group"><label>服务器地址</label><input id="plex_server_url"><span class="hint">如 http://192.168.7.154:32400</span></div><div class="form-group"><label>Token</label><input id="plex_token"><span class="hint">Plex Web → 设置 → 账户 → Token</span></div><div class="btn-group"><button class="btn btn-primary" onclick="saveMedia(\'plex\')">保存</button><button class="btn btn-secondary" onclick="testMedia(\'plex\')">测试连接</button><span id="plex-status"></span></div>'}
+function smbForm(d){return'<div class="form-group"><label>IP 地址</label><input id="smb_ip"><span class="hint">如 192.168.7.154</span></div><div class="form-group"><label>共享名称</label><input id="smb_share"><span class="hint">如 media</span></div><div class="form-group"><label>用户名</label><input id="smb_user"></div><div class="form-group"><label>密码</label><input id="smb_pass" type="password"></div><div class="btn-group"><button class="btn btn-primary" onclick="saveMedia(\'smb\')">保存</button><button class="btn btn-secondary" onclick="testMedia(\'smb\')">测试连接</button><span id="smb-status"></span></div>'}
+function webdavForm(d){return'<div class="form-group"><label>URL</label><input id="webdav_url"><span class="hint">如 http://192.168.7.154:8080/dav</span></div><div class="form-group"><label>用户名</label><input id="webdav_user"></div><div class="form-group"><label>密码</label><input id="webdav_pass" type="password"></div><div class="btn-group"><button class="btn btn-primary" onclick="saveMedia(\'webdav\')">保存</button><button class="btn btn-secondary" onclick="testMedia(\'webdav\')">测试连接</button><span id="webdav-status"></span></div>'}
+async function saveMedia(name){
+  var keys={'emby':['emby_server_url','emby_username','emby_password'],'jellyfin':['jellyfin_server_url','jellyfin_username','jellyfin_password'],'plex':['plex_server_url','plex_token'],'smb':['smb_ip','smb_share','smb_user','smb_pass'],'webdav':['webdav_url','webdav_user','webdav_pass']};
+  var body={};keys[name].forEach(function(k){var v=document.getElementById(k);if(v)body[k]=v.value});
+  await post('/settings',body);toast(name+' 设置已保存','success')
+}
+async function testMedia(name){var r=await post('/test/media',{type:name});var s=document.getElementById(name+'-status');if(s)s.innerHTML=r.ok?'<span class="badge badge-ok">✓ 连接成功</span>':'<span class="badge badge-err">✗ '+r.error+'</span>'}
+
+/* ====== PROXY ====== */
+function renderProxy(m){
+  m.innerHTML='<h1>代理设置</h1><div class="card"><h3>网络代理</h3>'+
+    '<div class="form-group"><label>HTTP 代理</label><input id="proxy-http" placeholder="如 http://192.168.7.1:7893"><span class="hint">主路由已翻墙可不配此项</span></div>'+
+    '<div class="form-group"><label>HTTPS 代理</label><input id="proxy-https" placeholder="同上或留空"></div>'+
+    '<div class="btn-group"><button class="btn btn-primary" onclick="saveProxy()">保存</button><button class="btn btn-secondary" onclick="testProxy()">测试连接</button><span id="proxy-status"></span></div></div>';
+}
+async function saveProxy(){var body={proxy_http:document.getElementById('proxy-http').value,proxy_https:document.getElementById('proxy-https').value};await post('/settings',body);toast('保存成功','success')}
+async function testProxy(){var r=await post('/test/proxy',{});var s=document.getElementById('proxy-status');if(s)s.innerHTML=r.ok?'<span class="badge badge-ok">✓ 代理可用</span>':'<span class="badge badge-err">✗ '+r.error+'</span>'}
+
+/* ====== PAN (OpenList + 115等) ====== */
+async function renderPan(m){
+  var d=await get('/settings');
+  var mainPan=d.main_pan||'115';
+  var tabs=['OpenList','115网盘','夸克网盘','阿里云盘','123云盘','光鸭'];
+  var cur=currentPanTab||'OpenList';
+  m.innerHTML='<h1>网盘管理</h1><div class="card" style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px;font-size:13px"><strong>默认主网盘：</strong><select id="main-pan" onchange="saveMainPan()" style="width:auto;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text)">'+['115','夸克','阿里云盘','123云盘','光鸭'].map(function(p){return'<option'+(p===mainPan?' selected':'')+'>'+p+'</option>'}).join('')+'</select><span class="badge badge-ok" id="main-pan-badge">'+mainPan+'</span></div></div>'+
+    '<div class="tabs" style="flex-wrap:wrap">'+tabs.map(function(t){return'<div class="tab'+(t===cur?' active':'')+'" onclick="switchPanTab(\''+t+'\')">'+t+'</div>'}).join('')+'</div><div id="pan-content"></div>';
+  renderPanTab(cur,d);
+}
+var currentPanTab='OpenList';
+function switchPanTab(t){currentPanTab=t;showPage('pan')}
+async function saveMainPan(){var v=document.getElementById('main-pan').value;await post('/settings',{main_pan:v});document.getElementById('main-pan-badge').textContent=v;toast('主网盘已设为 '+v,'success')}
+function renderPanTab(t,d){
+  var el=document.getElementById('pan-content');if(!el)return;
+  if(t==='OpenList'){el.innerHTML='<div class="card"><h3>OpenList 引擎</h3>'+
+    '<div class="form-group"><label>服务地址</label><input id="openlist_url" value="'+(d.openlist_url||'')+'"><span class="hint">OpenList 容器地址，host网络填 http://192.168.7.154:5244</span></div>'+
+    '<div class="form-group"><label>Admin Token</label><input id="openlist_token" value="'+(d.openlist_token||'')+'"><span class="hint">打开 OpenList → 设置 → 其他 → Token（以 openlist- 开头）</span></div>'+
+    '<div class="btn-group"><button class="btn btn-primary" onclick="savePan(\'openlist\')">保存</button><button class="btn btn-secondary" onclick="testPan(\'openlist\')">测试连接</button><span id="openlist-status"></span></div></div>'}
+  else if(t==='115网盘'){el.innerHTML='<div class="card"><h3>115 网盘</h3>'+
+    '<div class="form-group"><label>Cookie</label><input id="pan115_cookie" type="password" value="'+(d.pan115_cookie||'')+'"><span class="hint">浏览器 F12 → Application → Cookies 或扫码登录获取</span></div>'+
+    '<button class="btn btn-primary" onclick="savePan(\'115\')">保存</button> <button class="btn btn-secondary" onclick="testPan(\'115\')">测试连接</button><span id="115-status"></span>'+
+    '<hr style="border-color:var(--border);margin:18px 0"><h3>📱 扫码登录（推荐）</h3><button class="btn btn-secondary" onclick="qrLogin115()">手机 115 App 扫码登录</button>'+
+    '<hr style="border-color:var(--border);margin:18px 0"><h3>💾 空间检测</h3>'+
+    '<div class="form-group"><label>剩余空间告警阈值 (%)</label><input id="pan115_threshold" value="'+(d.pan115_threshold||'10')+'" type="number" min="1" max="99"><span class="hint">当剩余空间低于此百分比时，主页显示红色警告</span></div>'+
+    '<p style="font-size:13px">已用：<strong id="pan115-used">'+(d.pan115_used||'--')+'</strong> / 总量：<strong id="pan115-total">'+(d.pan115_total||'--')+'</strong></p>'+
+    '<button class="btn btn-secondary" onclick="savePan(\'115_threshold\')">保存阈值</button> <button class="btn btn-secondary" onclick="refresh115Space()">刷新空间</button></div>'}
+  else if(t==='夸克网盘'){el.innerHTML='<div class="card"><h3>夸克网盘</h3><div class="form-group"><label>Cookie</label><input id="quark_cookie"><span class="hint">夸克网页版登录后获取 Cookie</span></div><div class="btn-group"><button class="btn btn-primary" onclick="savePan(\'quark\')">保存</button><button class="btn btn-secondary" onclick="testPan(\'quark\')">测试连接</button><span id="quark-status"></span></div></div>'}
+  else if(t==='阿里云盘'){el.innerHTML='<div class="card"><h3>阿里云盘</h3><div class="form-group"><label>Refresh Token</label><input id="aliyundrive_token"><span class="hint">https://alist.nn.ci/tool/aliyundrive/request</span></div><div class="btn-group"><button class="btn btn-primary" onclick="savePan(\'aliyundrive\')">保存</button><button class="btn btn-secondary" onclick="testPan(\'aliyundrive\')">测试连接</button><span id="aliyundrive-status"></span></div></div>'}
+  else if(t==='123云盘'){el.innerHTML='<div class="card"><h3>123云盘</h3><div class="form-group"><label>账号</label><input id="pan123_user"><span class="hint">123云盘登录账号</span></div><div class="form-group"><label>密码</label><input id="pan123_pass" type="password"></div><div class="btn-group"><button class="btn btn-primary" onclick="savePan(\'123cloud\')">保存</button><button class="btn btn-secondary" onclick="testPan(\'123cloud\')">测试连接</button><span id="123cloud-status"></span></div></div>'}
+  else if(t==='光鸭'){el.innerHTML='<div class="card"><h3>光鸭</h3><div class="form-group"><label>API Key</label><input id="guangya_apikey"><span class="hint">光鸭个人中心获取</span></div><div class="btn-group"><button class="btn btn-primary" onclick="savePan(\'guangya\')">保存</button><button class="btn btn-secondary" onclick="testPan(\'guangya\')">测试连接</button><span id="guangya-status"></span></div></div>'}
+}
+async function savePan(name){
+  var m={'openlist':['openlist_url','openlist_token'],'115':['pan115_cookie'],'115_threshold':['pan115_threshold'],'quark':['quark_cookie'],'aliyundrive':['aliyundrive_token'],'123cloud':['pan123_user','pan123_pass'],'guangya':['guangya_apikey']};
+  var body={};if(m[name]){m[name].forEach(function(k){var v=document.getElementById(k);if(v)body[k]=v.value})}
+  await post('/settings',body);toast(name+' 设置已保存','success')
+}
+async function testPan(name){var r=await post('/test/pan',{type:name});var s=document.getElementById(name+'-status');if(s)s.innerHTML=r.ok?'<span class="badge badge-ok">✓ 连接成功</span>':'<span class="badge badge-err">✗ '+(r.error||'连接失败')+'</span>'}
+async function qrLogin115(){var r=await post('/pan115/qr/start',{});toast('请用手机 115 App 扫描终端显示的二维码','success')}
+async function refresh115Space(){var r=await get('/pan115/space');document.getElementById('pan115-used').textContent=r.used||'--';document.getElementById('pan115-total').textContent=r.total||'--';toast('空间已刷新','success')}
+
+/* ====== PANSEARCH ====== */
+async function renderPanSearch(m){
+  var d=await get('/settings');
+  var engines=d.pansou_enabled==='true';
+  m.innerHTML='<h1>盘搜设置</h1>'+
+    '<div class="card"><h3>⚙️ 搜索引擎管理</h3><table><thead><tr><th>源名称</th><th>状态</th><th>延迟</th><th>成功率</th><th>操作</th></tr></thead><tbody id="engine-list"><tr><td colspan="5" style="color:var(--muted)">加载中...</td></tr></tbody></table>'+
+    '<div class="btn-group" style="margin-top:12px"><button class="btn btn-secondary" onclick="addEngine()">+ 添加自定义搜索源</button><button class="btn btn-secondary" onclick="speedTestAll()">🔄 手动测速</button></div></div>'+
+    '<div class="card"><h3>📐 质量过滤规则</h3>'+
+    '<div class="form-group"><label>文件大小上限 (GB)</label><input id="search-max-size" value="50" type="number"></div>'+
+    '<div class="form-group"><label>最差画质</label><select id="search-min-quality"><option>720P</option><option>1080P</option><option>4K</option></select></div>'+
+    '<div class="form-group"><label>优先级</label><div style="font-size:12px;color:var(--muted)">4K HDR → 4K → 1080P → 720P（自动排序）</div></div>'+
+    '<button class="btn btn-primary" onclick="saveSearchFilters()">保存过滤规则</button></div>'+
+    '<div class="card"><h3>⏱️ 聚合参数</h3>'+
+    '<div class="form-group"><label>最大等待时间 (秒)</label><input id="search-timeout" value="2" type="number" min="1" max="10"></div>'+
+    '<div class="form-group"><label>并发请求数</label><select id="search-concurrency"><option>3</option><option>4</option><option selected>5</option></select></div>'+
+    '<div class="form-group"><label>结果去重策略</label><div style="font-size:12px;color:var(--muted)">按文件名 + 大小哈希去重</div></div>'+
+    '<button class="btn btn-primary" onclick="saveSearchAgg()">保存聚合参数</button></div>';
+  loadEngines();
+}
+async function loadEngines(){
+  var r=await get('/pansou/engines'),el=document.getElementById('engine-list');
+  if(!el||!r||!r.engines)return;
+  el.innerHTML=r.engines.map(function(e,i){return'<tr><td>'+e.name+'</td><td><span class="badge '+(e.enabled?'badge-ok':'badge-off')+'">'+(e.enabled?'已启用':'已禁用')+'</span></td><td>'+(e.latency||'--')+'ms</td><td>'+(e.success_rate||'--')+'%</td><td><button class="btn btn-secondary" style="font-size:11px;padding:4px 8px" onclick="toggleEngine('+i+')">'+(e.enabled?'禁用':'启用')+'</button></td></tr>'}).join('')
+}
+async function toggleEngine(i){var r=await post('/pansou/engines/toggle',{index:i});await loadEngines();toast('已切换','success')}
+async function addEngine(){
+  var name=prompt('搜索源名称：'),url=prompt('API URL：');
+  if(name&&url){await post('/pansou/engines/add',{name:name,url:url});await loadEngines();toast('已添加','success')}
+}
+async function speedTestAll(){await post('/pansou/speedtest',{});toast('测速中...结果将在完成后更新','success');setTimeout(loadEngines,5000)}
+async function saveSearchFilters(){var body={search_max_size:document.getElementById('search-max-size').value,search_min_quality:document.getElementById('search-min-quality').value};await post('/settings',body);toast('过滤规则已保存','success')}
+async function saveSearchAgg(){var body={search_timeout:document.getElementById('search-timeout').value,search_concurrency:document.getElementById('search-concurrency').value};await post('/settings',body);toast('聚合参数已保存','success')}
+
+/* ====== STORAGE ====== */
+async function renderStorage(m){
+  var d=await get('/settings');
+  var strmPath=d.strm_output_path||'/mnt/IPT-FILES/XXY-FILE/Emby/strm';
+  var strmCount=d.strm_count||'0';
+  m.innerHTML='<h1>存储管理</h1>'+
+    '<div class="card"><h3>📊 概览</h3><p style="font-size:14px">STRM 文件：<strong>'+strmCount+'</strong> 个 · 上次清理：<strong>'+(d.strm_last_cleanup||'--')+'</strong></p></div>'+
+    '<div class="card"><h3>⚙️ STRM 设置</h3>'+
+    '<div class="form-group"><label>输出路径</label><input id="strm_output_path" value="'+strmPath+'"></div>'+
+    '<div class="form-group"><label>自动清理 (天)</label><input id="strm_ttl" value="'+(d.strm_ttl||'30')+'" type="number"></div>'+
+    '<div class="btn-group"><button class="btn btn-primary" onclick="saveStrm()">保存</button><button class="btn btn-danger" onclick="cleanStrm()">手动清理</button></div></div>'+
+    '<div class="card"><h3>📋 网盘空间</h3><table id="pan-space-table"><thead><tr><th>网盘</th><th>已用</th><th>总量</th><th>使用率</th></tr></thead><tbody><tr><td colspan="4" style="color:var(--muted)">加载中...</td></tr></tbody></table></div>';
+  loadPanSpace();
+}
+async function saveStrm(){var body={strm_output_path:document.getElementById('strm_output_path').value,strm_ttl:document.getElementById('strm_ttl').value};await post('/settings',body);toast('STRM设置已保存','success')}
+async function cleanStrm(){var r=await post('/strm/cleanup',{});toast('已清理 '+r.cleaned+' 个过期STRM文件','success')}
+async function loadPanSpace(){var r=await get('/pan/space'),el=document.getElementById('pan-space-table');if(!el||!r)return;var tbody=el.querySelector('tbody');if(!tbody)return;tbody.innerHTML=r.pans.map(function(p){return'<tr><td>'+p.name+'</td><td>'+p.used+'</td><td>'+p.total+'</td><td><div class="progress-bar" style="width:120px"><div class="fill" style="width:'+p.pct+'%"></div></div>'+p.pct+'%</td></tr>'}).join('')}
+
+/* ====== TASKS ====== */
+async function renderTasks(m){
+  var r=await get('/tasks');
+  var active=r.active||[],waiting=r.waiting||[],done=r.done||[];
+  m.innerHTML='<h1>任务队列</h1>'+
+    '<div class="card"><h3>🔄 进行中 ('+active.length+')</h3>'+taskList(active)+'</div>'+
+    '<div class="card"><h3>⏳ 等待中 ('+waiting.length+')</h3>'+taskList(waiting)+'</div>'+
+    '<div class="card"><h3>✅ 已完成 (最近20条)</h3>'+taskList(done)+'</div>';
+}
+function taskList(items){return items.length?items.map(function(t){return'<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between"><span>'+t.name+'</span><span style="color:var(--muted)">'+t.time+'</span></div>'}).join(''):'<p style="color:var(--muted)">无任务</p>'}
+
+/* ====== LOGS ====== */
+function renderLogs(m){
+  m.innerHTML='<h1>系统日志</h1><div class="card">'+
+    '<p style="color:var(--muted)">使用以下命令查看实时日志：</p>'+
+    '<code style="background:var(--panel);padding:8px 14px;border-radius:8px;display:block;margin:8px 0;font-size:13px">docker logs -f x-media-server</code>'+
+    '<p style="color:var(--muted)">或设置 <code>LOG_LEVEL=debug</code> 环境变量后重启容器查看详细日志。</p></div>';
+}
+
+// Init
+showPage('dashboard');
+</script>
+</body>
+</html>
