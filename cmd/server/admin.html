@@ -153,6 +153,7 @@ async function renderDashboard(m){
     quickConfig('115网盘 Cookie',settings.pan115_cookie,'pan')+
     quickConfig('Emby 连接',settings.emby_server_url,'media')+
     quickConfig('代理上网',settings.proxy_http,'proxy')+
+    quickConfig('盘搜服务',settings.pansou_enabled,'pansearch')+
     '</div>';
 }
 function statusCard(label,val,cls){return '<div class="status-card"><div class="label">'+label+'</div><div class="value"><span class="dot '+cls+'"></span>'+val+'</div></div>'}

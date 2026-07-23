@@ -18,10 +18,13 @@ import (
 func RegisterAll(api *mux.Router, cfg *config.Config, db interface{}, state *model.StateStore, img *model.ImageCache) {
 	sqlDB := db.(*sql.DB)
 
+	pan115svc := NewPan115Service()
+	panSearchSvc := NewPanSearchService()
+
 	cfgHandler := NewConfigHandler(sqlDB, img)
 	scrapeHandler := NewScrapeHandler(img)
-	panHandler := NewPanHandler(cfg, sqlDB)
-	psHandler := NewPanSearchHandler()
+	panHandler := NewPanHandler(cfg, sqlDB, pan115svc)
+	psHandler := NewPanSearchHandler(panSearchSvc)
 	strmHandler := NewStrmHandler(sqlDB)
 	taskHandler := &TaskHandler{}
 
@@ -44,6 +47,7 @@ func RegisterAll(api *mux.Router, cfg *config.Config, db interface{}, state *mod
 
 	// 115 pan
 	api.HandleFunc("/pan115/qr/start", panHandler.QRStart).Methods("POST")
+	api.HandleFunc("/pan115/qr/check", panHandler.QRCheck).Methods("POST")
 	api.HandleFunc("/pan115/space", panHandler.Space).Methods("GET")
 	api.HandleFunc("/pan/space", panHandler.SpaceOverview).Methods("GET")
 
@@ -52,6 +56,7 @@ func RegisterAll(api *mux.Router, cfg *config.Config, db interface{}, state *mod
 	api.HandleFunc("/pansou/engines/toggle", psHandler.ToggleEngine).Methods("POST")
 	api.HandleFunc("/pansou/engines/add", psHandler.AddEngine).Methods("POST")
 	api.HandleFunc("/pansou/speedtest", psHandler.SpeedTest).Methods("POST")
+	api.HandleFunc("/pansou/search", psHandler.Search).Methods("POST")
 
 	// STRM
 	api.HandleFunc("/strm/cleanup", strmHandler.Cleanup).Methods("POST")
@@ -205,16 +210,51 @@ func (h *ScrapeHandler) ClearImgCache(w http.ResponseWriter, r *http.Request) {
 // ── PanHandler ──
 
 type PanHandler struct {
-	cfg *config.Config
-	db  *sql.DB
+	cfg   *config.Config
+	db    *sql.DB
+	pan115 *Pan115Service
 }
 
-func NewPanHandler(cfg *config.Config, db *sql.DB) *PanHandler {
-	return &PanHandler{cfg: cfg, db: db}
+func NewPanHandler(cfg *config.Config, db *sql.DB, pan115 *Pan115Service) *PanHandler {
+	return &PanHandler{cfg: cfg, db: db, pan115: pan115}
 }
+
+var qrSessions = make(map[string]*QRResult) // uid → result
 
 func (h *PanHandler) QRStart(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"status": "QR login started"})
+	result, err := h.pan115.QRLoginStep1()
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	qrSessions[result.UID] = result
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok":       true,
+		"uid":      result.UID,
+		"qr_image": result.QRImage,
+		"hint":     "请在 115 手机 App 中扫描二维码",
+	})
+}
+
+func (h *PanHandler) QRCheck(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		UID string `json:"uid"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+
+	status, err := h.pan115.QRLoginStep2(body.UID)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	if status.Status == 2 && status.Cookie != "" {
+		database.SetSetting("pan115_cookie", status.Cookie)
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok":      true,
+		"status":  status.Status,
+		"message": status.Message,
+	})
 }
 
 func (h *PanHandler) Space(w http.ResponseWriter, r *http.Request) {
@@ -233,32 +273,54 @@ func (h *PanHandler) SpaceOverview(w http.ResponseWriter, r *http.Request) {
 
 // ── PanSearchHandler ──
 
-type PanSearchHandler struct{}
+type PanSearchHandler struct {
+	svc *PanSearchService
+}
 
-func NewPanSearchHandler() *PanSearchHandler {
-	return &PanSearchHandler{}
+func NewPanSearchHandler(svc *PanSearchService) *PanSearchHandler {
+	return &PanSearchHandler{svc: svc}
 }
 
 func (h *PanSearchHandler) ListEngines(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"engines": []map[string]interface{}{
-			{"name": "Pansou", "enabled": true, "latency": 120, "success_rate": 98},
-			{"name": "猫狸盘搜", "enabled": true, "latency": 85, "success_rate": 96},
-			{"name": "Go-Pansearch", "enabled": true, "latency": 210, "success_rate": 91},
-		},
-	})
+	engines := make([]map[string]interface{}, 0)
+	for _, e := range h.svc.engines {
+		engines = append(engines, map[string]interface{}{
+			"name": e.Name, "url": e.URL, "enabled": true,
+			"latency": 0, "success_rate": 100,
+		})
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"engines": engines})
+}
+
+func (h *PanSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Query string `json:"query"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+
+	if body.Query == "" {
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "empty query"})
+		return
+	}
+	results := h.svc.SearchAll(body.Query, 50, "720P", 3)
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "results": results})
 }
 
 func (h *PanSearchHandler) ToggleEngine(w http.ResponseWriter, r *http.Request) {
+	var body struct{ Index int `json:"index"` }
+	json.NewDecoder(r.Body).Decode(&body)
 	json.NewEncoder(w).Encode(map[string]string{"status": "toggled"})
 }
 
 func (h *PanSearchHandler) AddEngine(w http.ResponseWriter, r *http.Request) {
+	var body struct{ Name string `json:"name"`; URL string `json:"url"` }
+	json.NewDecoder(r.Body).Decode(&body)
+	h.svc.engines = append(h.svc.engines, SearchEngine{Name: body.Name, URL: body.URL})
 	json.NewEncoder(w).Encode(map[string]string{"status": "added"})
 }
 
 func (h *PanSearchHandler) SpeedTest(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"status": "started"})
+	json.NewEncoder(w).Encode(map[string]string{"status": "speedtest started"})
 }
 
 // ── StrmHandler ──
