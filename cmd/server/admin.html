@@ -91,7 +91,7 @@ th{color:var(--muted);font-weight:500;font-size:11px;text-transform:uppercase}
 <div id="toast" class="toast"></div>
 <script>
 /* ====== Core ====== */
-const API='/api/config',s=localStorage;
+const API='/api',s=localStorage;
 function toast(m,t){var d=document.getElementById('toast');d.textContent=m;d.className='toast '+t+' show';setTimeout(function(){d.className='toast'},2500)}
 async function get(url){var r=await fetch(API+url,{headers:{'Authorization':'Bearer '+(s.getItem('token')||'')}});return r.json()}
 async function post(url,body){var r=await fetch(API+url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(s.getItem('token')||'')},body:JSON.stringify(body)});return r.json()}

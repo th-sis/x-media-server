@@ -26,9 +26,9 @@ func RegisterAll(api *mux.Router, cfg *config.Config, db interface{}, state *mod
 	taskHandler := &TaskHandler{}
 
 	// Config CRUD
-	api.HandleFunc("/config/settings", cfgHandler.GetSettings).Methods("GET")
-	api.HandleFunc("/config/settings", cfgHandler.SaveSettings).Methods("POST")
-	api.HandleFunc("/config/status", cfgHandler.GetStatus).Methods("GET")
+	api.HandleFunc("/settings", cfgHandler.GetSettings).Methods("GET")
+	api.HandleFunc("/settings", cfgHandler.SaveSettings).Methods("POST")
+	api.HandleFunc("/status", cfgHandler.GetStatus).Methods("GET")
 	api.HandleFunc("/test/tmdb", cfgHandler.TestTMDB).Methods("POST")
 	api.HandleFunc("/test/media", cfgHandler.TestMedia).Methods("POST")
 	api.HandleFunc("/test/proxy", cfgHandler.TestProxy).Methods("POST")

@@ -112,9 +112,9 @@ func Load() *Config {
 			AdminPassword:   envOr("AUTH_ADMIN_PASS", "admin"),
 		},
 		TMDB: TMDBConfig{
-			APIKey:       os.Getenv("TMDB_API_KEY"),
-			ImageBaseURL: "https://image.tmdb.org/t/p",
-		},
+				APIKey:       os.Getenv("TMDB_API_KEY"),
+				ImageBaseURL: "https://image.tmdb.org/t/p",
+			},
 		Emby: EmbyConfig{
 			ServerURL: envOr("EMBY_SERVER_URL", "http://192.168.7.1:2345"),
 			Username:  envOr("EMBY_USERNAME", "xiaoya"),

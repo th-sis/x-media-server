@@ -5,53 +5,34 @@
 # 访问: http://192.168.7.154:35678/config
 # ══════════════════════════════════════════════════════════════
 
-version: "3.9"
-
 services:
   x-media-server:
     image: thsis/x-media-server:latest
     container_name: x-media-server
     restart: unless-stopped
 
-    # TrueNAS SCALE App 用户
     user: "568:568"
 
     ports:
-      - "35678:35678"   # HTTP 管理面板 + 健康检查 + 图片代理
-      - "50051:50051"   # gRPC（Flutter 客户端播放控制通信）
+      - "35678:35678"
+      - "50051:50051"
 
     environment:
-      # ── 基础设施 ──
       SERVER_GRPC_PORT: ":50051"
       SERVER_HTTP_PORT: ":35678"
       SERVER_EXTERNAL_URL: "http://192.168.7.154:35678"
-
-      # ── 鉴权 ──
       AUTH_JWT_SECRET: "x-media-jwt-change-me-to-random-string"
       AUTH_ADMIN_USER: "admin"
       AUTH_ADMIN_PASS: "admin"
-
-      # ── 数据库路径（容器内部）──
       DB_PATH: "/app/data/xmedia.db"
-
-      # ── TMDB（图片代理需要，在管理面板配置）──
       TMDB_API_KEY: ""
-
-      # ── 代理（主路由已翻可不配）──
       PROXY_HTTP: ""
       PROXY_HTTPS: ""
-
-      # ── 日志：debug / info / warn / error ──
       LOG_LEVEL: "debug"
-
-      # ── 主网盘（默认 115，可在面板改）──
       MAIN_PAN: "115"
 
     volumes:
-      # SQLite 数据库
       - /mnt/IPT-FILES/XXY-FILE/x-media-server/data:/app/data
-
-      # TMDB 图片缓存（LRU 自动淘汰，≤800 张 ≈ 2GB）
       - /mnt/IPT-FILES/XXY-FILE/x-media-server/img_cache:/app/img_cache
 
     healthcheck:
@@ -60,10 +41,3 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
-
-    networks:
-      - x-media
-
-networks:
-  x-media:
-    driver: bridge
