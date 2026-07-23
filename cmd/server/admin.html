@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -299,16 +299,21 @@ async function renderPanSearch(m){
 async function loadEngines(){
   var r=await get('/pansou/engines'),el=document.getElementById('engine-list');
   if(!el||!r||!r.engines)return;
-  el.innerHTML=r.engines.map(function(e,i){return'<tr><td>'+e.name+'</td><td><span class="badge '+(e.enabled?'badge-ok':'badge-off')+'">'+(e.enabled?'已启用':'已禁用')+'</span></td><td>'+(e.latency||'--')+'ms</td><td>'+(e.success_rate||'--')+'%</td><td><button class="btn btn-secondary" style="font-size:11px;padding:4px 8px" onclick="toggleEngine('+i+')">'+(e.enabled?'禁用':'启用')+'</button></td></tr>'}).join('')
+  el.innerHTML=r.engines.map(function(e,i){return'<tr><td>'+e.name+'</td><td style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis">'+(e.base_url||'')+'</td><td>'+e.weight+'</td><td><span class="badge '+(e.enabled?'badge-ok':'badge-off')+'">'+(e.enabled?'启用':'禁用')+'</span></td><td><button class="btn btn-secondary" style="font-size:11px;padding:2px 6px" onclick="editEngine('+e.id+')">✏</button> <button class="btn btn-secondary" style="font-size:11px;padding:2px 6px" onclick="toggleEngine('+e.id+','+(!e.enabled)+')">'+(e.enabled?'停用':'启用')+'</button> <button class="btn btn-secondary" style="font-size:11px;padding:2px 6px;color:var(--red)" onclick="delEngine('+e.id+')">🗑</button></td></tr>'}).join('')
 }
-async function toggleEngine(i){var r=await post('/pansou/engines/toggle',{index:i});await loadEngines();toast('已切换','success')}
-async function addEngine(){
-  var name=prompt('搜索源名称：'),url=prompt('API URL：');
-  if(name&&url){await post('/pansou/engines/add',{name:name,url:url});await loadEngines();toast('已添加','success')}
+function showAddEngine(){editEngine(0)}
+async function editEngine(id){
+  var el=document.getElementById('engine-editor');el.style.display='block';
+  el.innerHTML='<h4>'+(id?'编辑引擎':'添加引擎')+'</h4><div class="form-group"><label>名称</label><input id="e-name"></div><div class="form-group"><label>Base URL</label><input id="e-url"></div><div class="form-group"><label>HTTP Method</label><input id="e-method" value="GET"></div><div class="form-group"><label>Headers (JSON)</label><input id="e-headers" value="{}"></div><div class="form-group"><label>正则提取</label><input id="e-regex"></div><div class="form-group"><label>权重</label><input id="e-weight" type="number" value="100"></div><div class="btn-group"><button class="btn btn-primary" onclick="saveEngine('+id+')">保存</button><button class="btn btn-secondary" onclick="document.getElementById(`engine-editor`).style.display=`none`">取消</button></div>';
 }
-async function speedTestAll(){await post('/pansou/speedtest',{});toast('测速中...结果将在完成后更新','success');setTimeout(loadEngines,5000)}
-async function saveSearchFilters(){var body={search_max_size:document.getElementById('search-max-size').value,search_min_quality:document.getElementById('search-min-quality').value};await post('/settings',body);toast('过滤规则已保存','success')}
-async function saveSearchAgg(){var body={search_timeout:document.getElementById('search-timeout').value,search_concurrency:document.getElementById('search-concurrency').value};await post('/settings',body);toast('聚合参数已保存','success')}
+async function saveEngine(id){
+  var body={name:document.getElementById('e-name').value,base_url:document.getElementById('e-url').value,method:document.getElementById('e-method').value,headers:document.getElementById('e-headers').value,regex_filter:document.getElementById('e-regex').value,weight:parseInt(document.getElementById('e-weight').value)};
+  var url=id?'/pansou/engines/update':'/pansou/engines/add';if(id)body.id=id;
+  await post(url,body);document.getElementById('engine-editor').style.display='none';loadEngines();toast(id?'已更新':'已添加','success')
+}
+async function toggleEngine(id,en){await post('/pansou/engines/toggle',{id:id,enabled:en});loadEngines();toast(en?'已启用':'已停用','success')}
+async function delEngine(id){if(confirm('确认删除？')){await post('/pansou/engines/delete',{id:id});loadEngines();toast('已删除','success')}}
+async function saveSearchAgg(){await post('/settings',{search_timeout:document.getElementById('search-timeout').value});toast('已保存','success')}
 
 /* ====== STORAGE ====== */
 async function renderStorage(m){
