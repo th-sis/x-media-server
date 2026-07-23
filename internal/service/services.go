@@ -23,8 +23,7 @@ import (
 // ═══════════════════════════════════════════════════════════
 
 type SessionManager struct {
-	mu       sync.RWMutex
-	sessions map[string]*ClientSession // device_id → session
+	sessions sync.Map // device_id → *ClientSession (sync.Map: 读多写少，Ping高频读取无锁)
 }
 
 type ClientSession struct {
@@ -34,37 +33,51 @@ type ClientSession struct {
 	ctx      context.Context
 	Cancel   context.CancelFunc
 	State    *model.PlaybackSession
+	// Per-device FIFO signal queue for remote key ordering
+	keyQueue chan *pb.ControlRequest
 }
 
-var globalSM = &SessionManager{sessions: make(map[string]*ClientSession)}
+var globalSM = &SessionManager{}
+
+// processKeyQueue consumes remote key events in FIFO order per device.
+// Single goroutine → guaranteed ordering.
+func (cs *ClientSession) processKeyQueue() {
+	for req := range cs.keyQueue {
+		p := req.Payload.(*pb.ControlRequest_RemoteKey)
+		log.Info().Str("device", cs.DeviceID).Str("key", p.RemoteKey.Key.String()).Bool("pressed", p.RemoteKey.Pressed).Msg("Remote key")
+		// TODO: map remote key to playback action (volume, seek, back, menu, etc.)
+	}
+}
 
 func (sm *SessionManager) Register(deviceID string, s *ClientSession) {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-	sm.sessions[deviceID] = s
+	s.keyQueue = make(chan *pb.ControlRequest, 64) // buffered for burst key presses
+	go s.processKeyQueue()                          // single goroutine per device = FIFO order guarantee
+	sm.sessions.Store(deviceID, s)
 	log.Info().Str("device", deviceID).Msg("Session registered")
 }
 
 func (sm *SessionManager) Unregister(deviceID string) {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-	delete(sm.sessions, deviceID)
+	if v, ok := sm.sessions.LoadAndDelete(deviceID); ok {
+		sess := v.(*ClientSession)
+		close(sess.keyQueue)
+		sess.Cancel()
+	}
 	log.Info().Str("device", deviceID).Msg("Session unregistered")
 }
 
 func (sm *SessionManager) Get(deviceID string) *ClientSession {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
-	return sm.sessions[deviceID]
+	v, ok := sm.sessions.Load(deviceID)
+	if !ok {
+		return nil
+	}
+	return v.(*ClientSession)
 }
 
-// PushToDevice pushes data to a specific device stream, with context cancellation safety.
-// Returns false if the device is offline or context is cancelled.
+// PushToDevice pushes data to a specific device stream with non-blocking timeout.
+// Returns false if the device is offline, context cancelled, or send times out.
 func (sm *SessionManager) PushToDevice(deviceID string, resp *pb.ControlResponse) bool {
-	sm.mu.RLock()
-	sess, ok := sm.sessions[deviceID]
-	sm.mu.RUnlock()
-	if !ok {
+	sess := sm.Get(deviceID)
+	if sess == nil {
 		log.Warn().Str("device", deviceID).Msg("Push failed: device offline")
 		return false
 	}
@@ -72,13 +85,26 @@ func (sm *SessionManager) PushToDevice(deviceID string, resp *pb.ControlResponse
 	case <-sess.ctx.Done():
 		log.Warn().Str("device", deviceID).Msg("Push failed: context cancelled")
 		return false
-	default:
-		if err := sess.Stream.Send(resp); err != nil {
+	case <-time.After(500 * time.Millisecond):
+		log.Warn().Str("device", deviceID).Msg("Push failed: stream send timeout (dead link)")
+		sm.Unregister(deviceID) // force cleanup dead connection
+		return false
+	case err := <-sess.sendAsync(resp):
+		if err != nil {
 			log.Error().Err(err).Str("device", deviceID).Msg("Push send error")
 			return false
 		}
 		return true
 	}
+}
+
+// sendAsync wraps Stream.Send in a goroutine + channel to enable select timeout
+func (cs *ClientSession) sendAsync(resp *pb.ControlResponse) <-chan error {
+	ch := make(chan error, 1)
+	go func() {
+		ch <- cs.Stream.Send(resp)
+	}()
+	return ch
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -162,7 +188,12 @@ func (s *PlaybackService) ControlStream(stream pb.PlaybackControlService_Control
 			sess.State.Volume = p.SetVolume.Volume
 
 		case *pb.ControlRequest_RemoteKey:
-			log.Info().Str("device", deviceID).Str("key", p.RemoteKey.Key.String()).Msg("Remote key")
+			// Route through per-device FIFO queue to guarantee ordering
+			select {
+			case sess.keyQueue <- req:
+			default:
+				log.Warn().Str("device", deviceID).Msg("Key queue full, dropping event")
+			}
 
 		case *pb.ControlRequest_Ping:
 			stream.Send(&pb.ControlResponse{
