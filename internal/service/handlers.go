@@ -249,7 +249,14 @@ func (h *PanHandler) QRCheck(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
 		return
 	}
-	if status.Status == 2 && status.Cookie != "" {
+	// When confirmed, get full cookie via Step3
+	if status.Status == 2 {
+		fullCookie, err := h.pan115.QRLoginStep3(body.UID)
+		if err == nil && fullCookie != "" {
+			status.Cookie = (status.Cookie + ";" + fullCookie)
+		}
+	}
+	if status.Cookie != "" {
 		database.SetSetting("pan115_cookie", status.Cookie)
 	}
 	json.NewEncoder(w).Encode(map[string]interface{}{
