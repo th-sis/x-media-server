@@ -36,7 +36,7 @@ func (s *Pan115Service) QRLoginStep1() (*QRResult, error) {
 	defer resp.Body.Close()
 
 	var result struct {
-		State bool `json:"state"`
+		State int  `json:"state"`
 		Data  struct {
 			UID  string `json:"uid"`
 			QrCode string `json:"qrcode"`
@@ -45,7 +45,7 @@ func (s *Pan115Service) QRLoginStep1() (*QRResult, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("115 QR parse error: %w", err)
 	}
-	if !result.State {
+	if result.State != 1 {
 		return nil, fmt.Errorf("115 API returned error")
 	}
 
@@ -70,7 +70,7 @@ func (s *Pan115Service) QRLoginStep2(uid string) (*QRStatus, error) {
 	defer resp.Body.Close()
 
 	var result struct {
-		State bool   `json:"state"`
+		State int   `json:"state"`
 		Msg   string `json:"msg"`
 		Data  struct {
 			Status int    `json:"status"`
@@ -133,7 +133,7 @@ func (s *Pan115Service) GetUserInfo(cookie string) (*Pan115UserInfo, error) {
 
 	body, _ := io.ReadAll(resp.Body)
 	var result struct {
-		State bool            `json:"state"`
+		State int             `json:"state"`
 		Data  *Pan115UserInfo `json:"data"`
 	}
 	json.Unmarshal(body, &result)
@@ -164,7 +164,7 @@ func (s *Pan115Service) GetSpaceInfo(cookie string) (*Pan115SpaceInfo, error) {
 	defer resp.Body.Close()
 
 	var result struct {
-		State bool             `json:"state"`
+		State int              `json:"state"`
 		Data  *Pan115SpaceInfo `json:"data"`
 	}
 	json.NewDecoder(resp.Body).Decode(&result)
