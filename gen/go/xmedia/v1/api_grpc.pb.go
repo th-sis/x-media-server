@@ -1214,6 +1214,150 @@ var ContentService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
+	TransferService_GetTransferStatus_FullMethodName = "/xmedia.v1.TransferService/GetTransferStatus"
+	TransferService_CancelTransfer_FullMethodName    = "/xmedia.v1.TransferService/CancelTransfer"
+)
+
+// TransferServiceClient is the client API for TransferService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type TransferServiceClient interface {
+	// 查询转存任务状态（Pull 模式，用于重连后恢复）
+	GetTransferStatus(ctx context.Context, in *TransferStatusRequest, opts ...grpc.CallOption) (*TransferStatusResponse, error)
+	// 取消转存任务
+	CancelTransfer(ctx context.Context, in *TransferStatusRequest, opts ...grpc.CallOption) (*TransferStatusResponse, error)
+}
+
+type transferServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewTransferServiceClient(cc grpc.ClientConnInterface) TransferServiceClient {
+	return &transferServiceClient{cc}
+}
+
+func (c *transferServiceClient) GetTransferStatus(ctx context.Context, in *TransferStatusRequest, opts ...grpc.CallOption) (*TransferStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TransferStatusResponse)
+	err := c.cc.Invoke(ctx, TransferService_GetTransferStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *transferServiceClient) CancelTransfer(ctx context.Context, in *TransferStatusRequest, opts ...grpc.CallOption) (*TransferStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TransferStatusResponse)
+	err := c.cc.Invoke(ctx, TransferService_CancelTransfer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// TransferServiceServer is the server API for TransferService service.
+// All implementations must embed UnimplementedTransferServiceServer
+// for forward compatibility.
+type TransferServiceServer interface {
+	// 查询转存任务状态（Pull 模式，用于重连后恢复）
+	GetTransferStatus(context.Context, *TransferStatusRequest) (*TransferStatusResponse, error)
+	// 取消转存任务
+	CancelTransfer(context.Context, *TransferStatusRequest) (*TransferStatusResponse, error)
+	mustEmbedUnimplementedTransferServiceServer()
+}
+
+// UnimplementedTransferServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedTransferServiceServer struct{}
+
+func (UnimplementedTransferServiceServer) GetTransferStatus(context.Context, *TransferStatusRequest) (*TransferStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetTransferStatus not implemented")
+}
+func (UnimplementedTransferServiceServer) CancelTransfer(context.Context, *TransferStatusRequest) (*TransferStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CancelTransfer not implemented")
+}
+func (UnimplementedTransferServiceServer) mustEmbedUnimplementedTransferServiceServer() {}
+func (UnimplementedTransferServiceServer) testEmbeddedByValue()                         {}
+
+// UnsafeTransferServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to TransferServiceServer will
+// result in compilation errors.
+type UnsafeTransferServiceServer interface {
+	mustEmbedUnimplementedTransferServiceServer()
+}
+
+func RegisterTransferServiceServer(s grpc.ServiceRegistrar, srv TransferServiceServer) {
+	// If the following call panics, it indicates UnimplementedTransferServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&TransferService_ServiceDesc, srv)
+}
+
+func _TransferService_GetTransferStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TransferStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransferServiceServer).GetTransferStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TransferService_GetTransferStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransferServiceServer).GetTransferStatus(ctx, req.(*TransferStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TransferService_CancelTransfer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TransferStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransferServiceServer).CancelTransfer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TransferService_CancelTransfer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransferServiceServer).CancelTransfer(ctx, req.(*TransferStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// TransferService_ServiceDesc is the grpc.ServiceDesc for TransferService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var TransferService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "xmedia.v1.TransferService",
+	HandlerType: (*TransferServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetTransferStatus",
+			Handler:    _TransferService_GetTransferStatus_Handler,
+		},
+		{
+			MethodName: "CancelTransfer",
+			Handler:    _TransferService_CancelTransfer_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "xmedia/v1/api.proto",
+}
+
+const (
 	HealthService_Check_FullMethodName = "/xmedia.v1.HealthService/Check"
 )
 

@@ -415,6 +415,61 @@ func (RemoteKey) EnumDescriptor() ([]byte, []int) {
 	return file_xmedia_v1_api_proto_rawDescGZIP(), []int{4}
 }
 
+type TransferStatus int32
+
+const (
+	TransferStatus_TRANSFER_STATUS_UNSPECIFIED TransferStatus = 0
+	TransferStatus_TRANSFER_STATUS_PENDING     TransferStatus = 1 // 等待提交
+	TransferStatus_TRANSFER_STATUS_DOWNLOADING TransferStatus = 2 // 115离线下载中
+	TransferStatus_TRANSFER_STATUS_COMPLETED   TransferStatus = 3 // 转存成功，直链就绪
+	TransferStatus_TRANSFER_STATUS_FAILED      TransferStatus = 4 // 转存失败
+)
+
+// Enum value maps for TransferStatus.
+var (
+	TransferStatus_name = map[int32]string{
+		0: "TRANSFER_STATUS_UNSPECIFIED",
+		1: "TRANSFER_STATUS_PENDING",
+		2: "TRANSFER_STATUS_DOWNLOADING",
+		3: "TRANSFER_STATUS_COMPLETED",
+		4: "TRANSFER_STATUS_FAILED",
+	}
+	TransferStatus_value = map[string]int32{
+		"TRANSFER_STATUS_UNSPECIFIED": 0,
+		"TRANSFER_STATUS_PENDING":     1,
+		"TRANSFER_STATUS_DOWNLOADING": 2,
+		"TRANSFER_STATUS_COMPLETED":   3,
+		"TRANSFER_STATUS_FAILED":      4,
+	}
+)
+
+func (x TransferStatus) Enum() *TransferStatus {
+	p := new(TransferStatus)
+	*p = x
+	return p
+}
+
+func (x TransferStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TransferStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_xmedia_v1_api_proto_enumTypes[5].Descriptor()
+}
+
+func (TransferStatus) Type() protoreflect.EnumType {
+	return &file_xmedia_v1_api_proto_enumTypes[5]
+}
+
+func (x TransferStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TransferStatus.Descriptor instead.
+func (TransferStatus) EnumDescriptor() ([]byte, []int) {
+	return file_xmedia_v1_api_proto_rawDescGZIP(), []int{5}
+}
+
 type User struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -2737,10 +2792,11 @@ func (x *RemoteKeyPayload) GetPressed() bool {
 }
 
 type PingPayload struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TimestampMs   int64                  `protobuf:"varint,1,opt,name=timestamp_ms,json=timestampMs,proto3" json:"timestamp_ms,omitempty"` // 客户端发送时间戳
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ClientTimestamp int64                  `protobuf:"varint,1,opt,name=client_timestamp,json=clientTimestamp,proto3" json:"client_timestamp,omitempty"` // 客户端发送时间戳
+	DeviceId        string                 `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`                       // 设备唯一ID（用于会话管理器追踪）
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PingPayload) Reset() {
@@ -2773,11 +2829,18 @@ func (*PingPayload) Descriptor() ([]byte, []int) {
 	return file_xmedia_v1_api_proto_rawDescGZIP(), []int{40}
 }
 
-func (x *PingPayload) GetTimestampMs() int64 {
+func (x *PingPayload) GetClientTimestamp() int64 {
 	if x != nil {
-		return x.TimestampMs
+		return x.ClientTimestamp
 	}
 	return 0
+}
+
+func (x *PingPayload) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
 }
 
 type ControlResponse struct {
@@ -3291,10 +3354,11 @@ func (x *BufferingPayload) GetProgressPercent() int32 {
 }
 
 type PongPayload struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TimestampMs   int64                  `protobuf:"varint,1,opt,name=timestamp_ms,json=timestampMs,proto3" json:"timestamp_ms,omitempty"` // 回显客户端时间戳
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ClientTimestamp int64                  `protobuf:"varint,1,opt,name=client_timestamp,json=clientTimestamp,proto3" json:"client_timestamp,omitempty"` // 回显客户端时间戳（用于 RTT 计算）
+	ServerTimestamp int64                  `protobuf:"varint,2,opt,name=server_timestamp,json=serverTimestamp,proto3" json:"server_timestamp,omitempty"` // 服务端时间戳（用于时钟校准）
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PongPayload) Reset() {
@@ -3327,9 +3391,16 @@ func (*PongPayload) Descriptor() ([]byte, []int) {
 	return file_xmedia_v1_api_proto_rawDescGZIP(), []int{49}
 }
 
-func (x *PongPayload) GetTimestampMs() int64 {
+func (x *PongPayload) GetClientTimestamp() int64 {
 	if x != nil {
-		return x.TimestampMs
+		return x.ClientTimestamp
+	}
+	return 0
+}
+
+func (x *PongPayload) GetServerTimestamp() int64 {
+	if x != nil {
+		return x.ServerTimestamp
 	}
 	return 0
 }
@@ -4154,6 +4225,118 @@ func (x *GetExploreFeedResponse) GetTopRated() []*MediaItem {
 	return nil
 }
 
+type TransferStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TransferStatusRequest) Reset() {
+	*x = TransferStatusRequest{}
+	mi := &file_xmedia_v1_api_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TransferStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransferStatusRequest) ProtoMessage() {}
+
+func (x *TransferStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_xmedia_v1_api_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransferStatusRequest.ProtoReflect.Descriptor instead.
+func (*TransferStatusRequest) Descriptor() ([]byte, []int) {
+	return file_xmedia_v1_api_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *TransferStatusRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+type TransferStatusResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        TransferStatus         `protobuf:"varint,1,opt,name=status,proto3,enum=xmedia.v1.TransferStatus" json:"status,omitempty"`
+	Progress      int32                  `protobuf:"varint,2,opt,name=progress,proto3" json:"progress,omitempty"`                         // 离线进度 0-100
+	PlayableUrl   string                 `protobuf:"bytes,3,opt,name=playable_url,json=playableUrl,proto3" json:"playable_url,omitempty"` // 成功后返回115直链
+	ErrorMessage  string                 `protobuf:"bytes,4,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TransferStatusResponse) Reset() {
+	*x = TransferStatusResponse{}
+	mi := &file_xmedia_v1_api_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TransferStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransferStatusResponse) ProtoMessage() {}
+
+func (x *TransferStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_xmedia_v1_api_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransferStatusResponse.ProtoReflect.Descriptor instead.
+func (*TransferStatusResponse) Descriptor() ([]byte, []int) {
+	return file_xmedia_v1_api_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *TransferStatusResponse) GetStatus() TransferStatus {
+	if x != nil {
+		return x.Status
+	}
+	return TransferStatus_TRANSFER_STATUS_UNSPECIFIED
+}
+
+func (x *TransferStatusResponse) GetProgress() int32 {
+	if x != nil {
+		return x.Progress
+	}
+	return 0
+}
+
+func (x *TransferStatusResponse) GetPlayableUrl() string {
+	if x != nil {
+		return x.PlayableUrl
+	}
+	return ""
+}
+
+func (x *TransferStatusResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
 type HealthCheckResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"` // "SERVING" | "NOT_SERVING"
@@ -4165,7 +4348,7 @@ type HealthCheckResponse struct {
 
 func (x *HealthCheckResponse) Reset() {
 	*x = HealthCheckResponse{}
-	mi := &file_xmedia_v1_api_proto_msgTypes[63]
+	mi := &file_xmedia_v1_api_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4177,7 +4360,7 @@ func (x *HealthCheckResponse) String() string {
 func (*HealthCheckResponse) ProtoMessage() {}
 
 func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_xmedia_v1_api_proto_msgTypes[63]
+	mi := &file_xmedia_v1_api_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4190,7 +4373,7 @@ func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckResponse.ProtoReflect.Descriptor instead.
 func (*HealthCheckResponse) Descriptor() ([]byte, []int) {
-	return file_xmedia_v1_api_proto_rawDescGZIP(), []int{63}
+	return file_xmedia_v1_api_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *HealthCheckResponse) GetStatus() string {
@@ -4387,9 +4570,10 @@ const file_xmedia_v1_api_proto_rawDesc = "" +
 	"\x0fPreviousPayload\"T\n" +
 	"\x10RemoteKeyPayload\x12&\n" +
 	"\x03key\x18\x01 \x01(\x0e2\x14.xmedia.v1.RemoteKeyR\x03key\x12\x18\n" +
-	"\apressed\x18\x02 \x01(\bR\apressed\"0\n" +
-	"\vPingPayload\x12!\n" +
-	"\ftimestamp_ms\x18\x01 \x01(\x03R\vtimestampMs\"\xd9\x04\n" +
+	"\apressed\x18\x02 \x01(\bR\apressed\"U\n" +
+	"\vPingPayload\x12)\n" +
+	"\x10client_timestamp\x18\x01 \x01(\x03R\x0fclientTimestamp\x12\x1b\n" +
+	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\"\xd9\x04\n" +
 	"\x0fControlResponse\x12.\n" +
 	"\x13request_sequence_id\x18\x01 \x01(\x03R\x11requestSequenceId\x12E\n" +
 	"\rstate_changed\x18\x02 \x01(\v2\x1e.xmedia.v1.StateChangedPayloadH\x00R\fstateChanged\x12N\n" +
@@ -4417,9 +4601,10 @@ const file_xmedia_v1_api_proto_rawDesc = "" +
 	"\bmedia_id\x18\x01 \x01(\tR\amediaId\"`\n" +
 	"\x10BufferingPayload\x12!\n" +
 	"\fis_buffering\x18\x01 \x01(\bR\visBuffering\x12)\n" +
-	"\x10progress_percent\x18\x02 \x01(\x05R\x0fprogressPercent\"0\n" +
-	"\vPongPayload\x12!\n" +
-	"\ftimestamp_ms\x18\x01 \x01(\x03R\vtimestampMs\"\xc4\x02\n" +
+	"\x10progress_percent\x18\x02 \x01(\x05R\x0fprogressPercent\"c\n" +
+	"\vPongPayload\x12)\n" +
+	"\x10client_timestamp\x18\x01 \x01(\x03R\x0fclientTimestamp\x12)\n" +
+	"\x10server_timestamp\x18\x02 \x01(\x03R\x0fserverTimestamp\"\xc4\x02\n" +
 	"\x15PlaybackStateSnapshot\x12,\n" +
 	"\x05state\x18\x01 \x01(\x0e2\x16.xmedia.v1.PlayerStateR\x05state\x129\n" +
 	"\rcurrent_media\x18\x02 \x01(\v2\x14.xmedia.v1.MediaItemR\fcurrentMedia\x12#\n" +
@@ -4492,7 +4677,14 @@ const file_xmedia_v1_api_proto_rawDesc = "" +
 	"\x16GetExploreFeedResponse\x120\n" +
 	"\btrending\x18\x01 \x03(\v2\x14.xmedia.v1.MediaItemR\btrending\x12.\n" +
 	"\apopular\x18\x02 \x03(\v2\x14.xmedia.v1.MediaItemR\apopular\x121\n" +
-	"\ttop_rated\x18\x03 \x03(\v2\x14.xmedia.v1.MediaItemR\btopRated\"h\n" +
+	"\ttop_rated\x18\x03 \x03(\v2\x14.xmedia.v1.MediaItemR\btopRated\"0\n" +
+	"\x15TransferStatusRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\"\xaf\x01\n" +
+	"\x16TransferStatusResponse\x121\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x19.xmedia.v1.TransferStatusR\x06status\x12\x1a\n" +
+	"\bprogress\x18\x02 \x01(\x05R\bprogress\x12!\n" +
+	"\fplayable_url\x18\x03 \x01(\tR\vplayableUrl\x12#\n" +
+	"\rerror_message\x18\x04 \x01(\tR\ferrorMessage\"h\n" +
 	"\x13HealthCheckResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1f\n" +
@@ -4559,7 +4751,13 @@ const file_xmedia_v1_api_proto_rawDesc = "" +
 	"\x0fREMOTE_KEY_BLUE\x10\x17\x12\x17\n" +
 	"\x13REMOTE_KEY_SUBTITLE\x10\x18\x12\x14\n" +
 	"\x10REMOTE_KEY_AUDIO\x10\x19\x12\x13\n" +
-	"\x0fREMOTE_KEY_INFO\x10\x1a\"\x05\bd\x10\x96\x012\xd9\x01\n" +
+	"\x0fREMOTE_KEY_INFO\x10\x1a\"\x05\bd\x10\x96\x01*\xaa\x01\n" +
+	"\x0eTransferStatus\x12\x1f\n" +
+	"\x1bTRANSFER_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17TRANSFER_STATUS_PENDING\x10\x01\x12\x1f\n" +
+	"\x1bTRANSFER_STATUS_DOWNLOADING\x10\x02\x12\x1d\n" +
+	"\x19TRANSFER_STATUS_COMPLETED\x10\x03\x12\x1a\n" +
+	"\x16TRANSFER_STATUS_FAILED\x10\x042\xd9\x01\n" +
 	"\vAuthService\x12:\n" +
 	"\x05Login\x12\x17.xmedia.v1.LoginRequest\x1a\x18.xmedia.v1.LoginResponse\x12O\n" +
 	"\fRefreshToken\x12\x1e.xmedia.v1.RefreshTokenRequest\x1a\x1f.xmedia.v1.RefreshTokenResponse\x12=\n" +
@@ -4587,7 +4785,10 @@ const file_xmedia_v1_api_proto_rawDesc = "" +
 	"\x06Search\x12\x18.xmedia.v1.SearchRequest\x1a\x19.xmedia.v1.SearchResponse\x12I\n" +
 	"\n" +
 	"GetPlayUrl\x12\x1c.xmedia.v1.GetPlayUrlRequest\x1a\x1d.xmedia.v1.GetPlayUrlResponse\x12U\n" +
-	"\x0eGetExploreFeed\x12 .xmedia.v1.GetExploreFeedRequest\x1a!.xmedia.v1.GetExploreFeedResponse2P\n" +
+	"\x0eGetExploreFeed\x12 .xmedia.v1.GetExploreFeedRequest\x1a!.xmedia.v1.GetExploreFeedResponse2\xc2\x01\n" +
+	"\x0fTransferService\x12X\n" +
+	"\x11GetTransferStatus\x12 .xmedia.v1.TransferStatusRequest\x1a!.xmedia.v1.TransferStatusResponse\x12U\n" +
+	"\x0eCancelTransfer\x12 .xmedia.v1.TransferStatusRequest\x1a!.xmedia.v1.TransferStatusResponse2P\n" +
 	"\rHealthService\x12?\n" +
 	"\x05Check\x12\x16.google.protobuf.Empty\x1a\x1e.xmedia.v1.HealthCheckResponseBM\n" +
 	"\rcom.xmedia.v1P\x01Z:github.com/th-sis/x-media-contract/gen/go/xmedia/v1;xmediab\x06proto3"
@@ -4604,199 +4805,207 @@ func file_xmedia_v1_api_proto_rawDescGZIP() []byte {
 	return file_xmedia_v1_api_proto_rawDescData
 }
 
-var file_xmedia_v1_api_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_xmedia_v1_api_proto_msgTypes = make([]protoimpl.MessageInfo, 66)
+var file_xmedia_v1_api_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
+var file_xmedia_v1_api_proto_msgTypes = make([]protoimpl.MessageInfo, 68)
 var file_xmedia_v1_api_proto_goTypes = []any{
 	(MediaType)(0),                         // 0: xmedia.v1.MediaType
 	(MediaSource)(0),                       // 1: xmedia.v1.MediaSource
 	(ErrorCode)(0),                         // 2: xmedia.v1.ErrorCode
 	(PlayerState)(0),                       // 3: xmedia.v1.PlayerState
 	(RemoteKey)(0),                         // 4: xmedia.v1.RemoteKey
-	(*User)(nil),                           // 5: xmedia.v1.User
-	(*MediaItem)(nil),                      // 6: xmedia.v1.MediaItem
-	(*PaginationRequest)(nil),              // 7: xmedia.v1.PaginationRequest
-	(*PaginationResponse)(nil),             // 8: xmedia.v1.PaginationResponse
-	(*ErrorDetail)(nil),                    // 9: xmedia.v1.ErrorDetail
-	(*LoginRequest)(nil),                   // 10: xmedia.v1.LoginRequest
-	(*LoginResponse)(nil),                  // 11: xmedia.v1.LoginResponse
-	(*RefreshTokenRequest)(nil),            // 12: xmedia.v1.RefreshTokenRequest
-	(*RefreshTokenResponse)(nil),           // 13: xmedia.v1.RefreshTokenResponse
-	(*LogoutRequest)(nil),                  // 14: xmedia.v1.LogoutRequest
-	(*LogoutResponse)(nil),                 // 15: xmedia.v1.LogoutResponse
-	(*Playlist)(nil),                       // 16: xmedia.v1.Playlist
-	(*ListPlaylistsRequest)(nil),           // 17: xmedia.v1.ListPlaylistsRequest
-	(*ListPlaylistsResponse)(nil),          // 18: xmedia.v1.ListPlaylistsResponse
-	(*GetPlaylistRequest)(nil),             // 19: xmedia.v1.GetPlaylistRequest
-	(*CreatePlaylistRequest)(nil),          // 20: xmedia.v1.CreatePlaylistRequest
-	(*UpdatePlaylistRequest)(nil),          // 21: xmedia.v1.UpdatePlaylistRequest
-	(*DeletePlaylistRequest)(nil),          // 22: xmedia.v1.DeletePlaylistRequest
-	(*AddMediaToPlaylistRequest)(nil),      // 23: xmedia.v1.AddMediaToPlaylistRequest
-	(*RemoveMediaFromPlaylistRequest)(nil), // 24: xmedia.v1.RemoveMediaFromPlaylistRequest
-	(*ListFavoritesRequest)(nil),           // 25: xmedia.v1.ListFavoritesRequest
-	(*ListFavoritesResponse)(nil),          // 26: xmedia.v1.ListFavoritesResponse
-	(*AddFavoriteRequest)(nil),             // 27: xmedia.v1.AddFavoriteRequest
-	(*RemoveFavoriteRequest)(nil),          // 28: xmedia.v1.RemoveFavoriteRequest
-	(*ListSubscriptionsRequest)(nil),       // 29: xmedia.v1.ListSubscriptionsRequest
-	(*ListSubscriptionsResponse)(nil),      // 30: xmedia.v1.ListSubscriptionsResponse
-	(*SubscribeRequest)(nil),               // 31: xmedia.v1.SubscribeRequest
-	(*UnsubscribeRequest)(nil),             // 32: xmedia.v1.UnsubscribeRequest
-	(*ControlRequest)(nil),                 // 33: xmedia.v1.ControlRequest
-	(*PlayPayload)(nil),                    // 34: xmedia.v1.PlayPayload
-	(*PausePayload)(nil),                   // 35: xmedia.v1.PausePayload
-	(*StopPayload)(nil),                    // 36: xmedia.v1.StopPayload
-	(*SeekPayload)(nil),                    // 37: xmedia.v1.SeekPayload
-	(*SetVolumePayload)(nil),               // 38: xmedia.v1.SetVolumePayload
-	(*SetSpeedPayload)(nil),                // 39: xmedia.v1.SetSpeedPayload
-	(*SetAudioTrackPayload)(nil),           // 40: xmedia.v1.SetAudioTrackPayload
-	(*SetSubtitleTrackPayload)(nil),        // 41: xmedia.v1.SetSubtitleTrackPayload
-	(*NextPayload)(nil),                    // 42: xmedia.v1.NextPayload
-	(*PreviousPayload)(nil),                // 43: xmedia.v1.PreviousPayload
-	(*RemoteKeyPayload)(nil),               // 44: xmedia.v1.RemoteKeyPayload
-	(*PingPayload)(nil),                    // 45: xmedia.v1.PingPayload
-	(*ControlResponse)(nil),                // 46: xmedia.v1.ControlResponse
-	(*StateChangedPayload)(nil),            // 47: xmedia.v1.StateChangedPayload
-	(*PositionUpdatedPayload)(nil),         // 48: xmedia.v1.PositionUpdatedPayload
-	(*VolumeChangedPayload)(nil),           // 49: xmedia.v1.VolumeChangedPayload
-	(*MediaChangedPayload)(nil),            // 50: xmedia.v1.MediaChangedPayload
-	(*PlaybackErrorPayload)(nil),           // 51: xmedia.v1.PlaybackErrorPayload
-	(*MediaEndedPayload)(nil),              // 52: xmedia.v1.MediaEndedPayload
-	(*BufferingPayload)(nil),               // 53: xmedia.v1.BufferingPayload
-	(*PongPayload)(nil),                    // 54: xmedia.v1.PongPayload
-	(*PlaybackStateSnapshot)(nil),          // 55: xmedia.v1.PlaybackStateSnapshot
-	(*BrowseLibraryRequest)(nil),           // 56: xmedia.v1.BrowseLibraryRequest
-	(*BrowseLibraryResponse)(nil),          // 57: xmedia.v1.BrowseLibraryResponse
-	(*GetMediaDetailRequest)(nil),          // 58: xmedia.v1.GetMediaDetailRequest
-	(*MediaDetail)(nil),                    // 59: xmedia.v1.MediaDetail
-	(*Season)(nil),                         // 60: xmedia.v1.Season
-	(*Episode)(nil),                        // 61: xmedia.v1.Episode
-	(*SearchRequest)(nil),                  // 62: xmedia.v1.SearchRequest
-	(*SearchResponse)(nil),                 // 63: xmedia.v1.SearchResponse
-	(*GetPlayUrlRequest)(nil),              // 64: xmedia.v1.GetPlayUrlRequest
-	(*GetPlayUrlResponse)(nil),             // 65: xmedia.v1.GetPlayUrlResponse
-	(*GetExploreFeedRequest)(nil),          // 66: xmedia.v1.GetExploreFeedRequest
-	(*GetExploreFeedResponse)(nil),         // 67: xmedia.v1.GetExploreFeedResponse
-	(*HealthCheckResponse)(nil),            // 68: xmedia.v1.HealthCheckResponse
-	nil,                                    // 69: xmedia.v1.ErrorDetail.MetadataEntry
-	nil,                                    // 70: xmedia.v1.GetPlayUrlResponse.HeadersEntry
-	(*timestamppb.Timestamp)(nil),          // 71: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),                  // 72: google.protobuf.Empty
+	(TransferStatus)(0),                    // 5: xmedia.v1.TransferStatus
+	(*User)(nil),                           // 6: xmedia.v1.User
+	(*MediaItem)(nil),                      // 7: xmedia.v1.MediaItem
+	(*PaginationRequest)(nil),              // 8: xmedia.v1.PaginationRequest
+	(*PaginationResponse)(nil),             // 9: xmedia.v1.PaginationResponse
+	(*ErrorDetail)(nil),                    // 10: xmedia.v1.ErrorDetail
+	(*LoginRequest)(nil),                   // 11: xmedia.v1.LoginRequest
+	(*LoginResponse)(nil),                  // 12: xmedia.v1.LoginResponse
+	(*RefreshTokenRequest)(nil),            // 13: xmedia.v1.RefreshTokenRequest
+	(*RefreshTokenResponse)(nil),           // 14: xmedia.v1.RefreshTokenResponse
+	(*LogoutRequest)(nil),                  // 15: xmedia.v1.LogoutRequest
+	(*LogoutResponse)(nil),                 // 16: xmedia.v1.LogoutResponse
+	(*Playlist)(nil),                       // 17: xmedia.v1.Playlist
+	(*ListPlaylistsRequest)(nil),           // 18: xmedia.v1.ListPlaylistsRequest
+	(*ListPlaylistsResponse)(nil),          // 19: xmedia.v1.ListPlaylistsResponse
+	(*GetPlaylistRequest)(nil),             // 20: xmedia.v1.GetPlaylistRequest
+	(*CreatePlaylistRequest)(nil),          // 21: xmedia.v1.CreatePlaylistRequest
+	(*UpdatePlaylistRequest)(nil),          // 22: xmedia.v1.UpdatePlaylistRequest
+	(*DeletePlaylistRequest)(nil),          // 23: xmedia.v1.DeletePlaylistRequest
+	(*AddMediaToPlaylistRequest)(nil),      // 24: xmedia.v1.AddMediaToPlaylistRequest
+	(*RemoveMediaFromPlaylistRequest)(nil), // 25: xmedia.v1.RemoveMediaFromPlaylistRequest
+	(*ListFavoritesRequest)(nil),           // 26: xmedia.v1.ListFavoritesRequest
+	(*ListFavoritesResponse)(nil),          // 27: xmedia.v1.ListFavoritesResponse
+	(*AddFavoriteRequest)(nil),             // 28: xmedia.v1.AddFavoriteRequest
+	(*RemoveFavoriteRequest)(nil),          // 29: xmedia.v1.RemoveFavoriteRequest
+	(*ListSubscriptionsRequest)(nil),       // 30: xmedia.v1.ListSubscriptionsRequest
+	(*ListSubscriptionsResponse)(nil),      // 31: xmedia.v1.ListSubscriptionsResponse
+	(*SubscribeRequest)(nil),               // 32: xmedia.v1.SubscribeRequest
+	(*UnsubscribeRequest)(nil),             // 33: xmedia.v1.UnsubscribeRequest
+	(*ControlRequest)(nil),                 // 34: xmedia.v1.ControlRequest
+	(*PlayPayload)(nil),                    // 35: xmedia.v1.PlayPayload
+	(*PausePayload)(nil),                   // 36: xmedia.v1.PausePayload
+	(*StopPayload)(nil),                    // 37: xmedia.v1.StopPayload
+	(*SeekPayload)(nil),                    // 38: xmedia.v1.SeekPayload
+	(*SetVolumePayload)(nil),               // 39: xmedia.v1.SetVolumePayload
+	(*SetSpeedPayload)(nil),                // 40: xmedia.v1.SetSpeedPayload
+	(*SetAudioTrackPayload)(nil),           // 41: xmedia.v1.SetAudioTrackPayload
+	(*SetSubtitleTrackPayload)(nil),        // 42: xmedia.v1.SetSubtitleTrackPayload
+	(*NextPayload)(nil),                    // 43: xmedia.v1.NextPayload
+	(*PreviousPayload)(nil),                // 44: xmedia.v1.PreviousPayload
+	(*RemoteKeyPayload)(nil),               // 45: xmedia.v1.RemoteKeyPayload
+	(*PingPayload)(nil),                    // 46: xmedia.v1.PingPayload
+	(*ControlResponse)(nil),                // 47: xmedia.v1.ControlResponse
+	(*StateChangedPayload)(nil),            // 48: xmedia.v1.StateChangedPayload
+	(*PositionUpdatedPayload)(nil),         // 49: xmedia.v1.PositionUpdatedPayload
+	(*VolumeChangedPayload)(nil),           // 50: xmedia.v1.VolumeChangedPayload
+	(*MediaChangedPayload)(nil),            // 51: xmedia.v1.MediaChangedPayload
+	(*PlaybackErrorPayload)(nil),           // 52: xmedia.v1.PlaybackErrorPayload
+	(*MediaEndedPayload)(nil),              // 53: xmedia.v1.MediaEndedPayload
+	(*BufferingPayload)(nil),               // 54: xmedia.v1.BufferingPayload
+	(*PongPayload)(nil),                    // 55: xmedia.v1.PongPayload
+	(*PlaybackStateSnapshot)(nil),          // 56: xmedia.v1.PlaybackStateSnapshot
+	(*BrowseLibraryRequest)(nil),           // 57: xmedia.v1.BrowseLibraryRequest
+	(*BrowseLibraryResponse)(nil),          // 58: xmedia.v1.BrowseLibraryResponse
+	(*GetMediaDetailRequest)(nil),          // 59: xmedia.v1.GetMediaDetailRequest
+	(*MediaDetail)(nil),                    // 60: xmedia.v1.MediaDetail
+	(*Season)(nil),                         // 61: xmedia.v1.Season
+	(*Episode)(nil),                        // 62: xmedia.v1.Episode
+	(*SearchRequest)(nil),                  // 63: xmedia.v1.SearchRequest
+	(*SearchResponse)(nil),                 // 64: xmedia.v1.SearchResponse
+	(*GetPlayUrlRequest)(nil),              // 65: xmedia.v1.GetPlayUrlRequest
+	(*GetPlayUrlResponse)(nil),             // 66: xmedia.v1.GetPlayUrlResponse
+	(*GetExploreFeedRequest)(nil),          // 67: xmedia.v1.GetExploreFeedRequest
+	(*GetExploreFeedResponse)(nil),         // 68: xmedia.v1.GetExploreFeedResponse
+	(*TransferStatusRequest)(nil),          // 69: xmedia.v1.TransferStatusRequest
+	(*TransferStatusResponse)(nil),         // 70: xmedia.v1.TransferStatusResponse
+	(*HealthCheckResponse)(nil),            // 71: xmedia.v1.HealthCheckResponse
+	nil,                                    // 72: xmedia.v1.ErrorDetail.MetadataEntry
+	nil,                                    // 73: xmedia.v1.GetPlayUrlResponse.HeadersEntry
+	(*timestamppb.Timestamp)(nil),          // 74: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),                  // 75: google.protobuf.Empty
 }
 var file_xmedia_v1_api_proto_depIdxs = []int32{
 	0,  // 0: xmedia.v1.MediaItem.media_type:type_name -> xmedia.v1.MediaType
 	1,  // 1: xmedia.v1.MediaItem.source:type_name -> xmedia.v1.MediaSource
-	71, // 2: xmedia.v1.MediaItem.premiered:type_name -> google.protobuf.Timestamp
-	71, // 3: xmedia.v1.MediaItem.added_at:type_name -> google.protobuf.Timestamp
+	74, // 2: xmedia.v1.MediaItem.premiered:type_name -> google.protobuf.Timestamp
+	74, // 3: xmedia.v1.MediaItem.added_at:type_name -> google.protobuf.Timestamp
 	2,  // 4: xmedia.v1.ErrorDetail.code:type_name -> xmedia.v1.ErrorCode
-	69, // 5: xmedia.v1.ErrorDetail.metadata:type_name -> xmedia.v1.ErrorDetail.MetadataEntry
-	5,  // 6: xmedia.v1.LoginResponse.user:type_name -> xmedia.v1.User
-	71, // 7: xmedia.v1.Playlist.created_at:type_name -> google.protobuf.Timestamp
-	71, // 8: xmedia.v1.Playlist.updated_at:type_name -> google.protobuf.Timestamp
-	7,  // 9: xmedia.v1.ListPlaylistsRequest.pagination:type_name -> xmedia.v1.PaginationRequest
-	16, // 10: xmedia.v1.ListPlaylistsResponse.playlists:type_name -> xmedia.v1.Playlist
-	8,  // 11: xmedia.v1.ListPlaylistsResponse.pagination:type_name -> xmedia.v1.PaginationResponse
-	7,  // 12: xmedia.v1.ListFavoritesRequest.pagination:type_name -> xmedia.v1.PaginationRequest
+	72, // 5: xmedia.v1.ErrorDetail.metadata:type_name -> xmedia.v1.ErrorDetail.MetadataEntry
+	6,  // 6: xmedia.v1.LoginResponse.user:type_name -> xmedia.v1.User
+	74, // 7: xmedia.v1.Playlist.created_at:type_name -> google.protobuf.Timestamp
+	74, // 8: xmedia.v1.Playlist.updated_at:type_name -> google.protobuf.Timestamp
+	8,  // 9: xmedia.v1.ListPlaylistsRequest.pagination:type_name -> xmedia.v1.PaginationRequest
+	17, // 10: xmedia.v1.ListPlaylistsResponse.playlists:type_name -> xmedia.v1.Playlist
+	9,  // 11: xmedia.v1.ListPlaylistsResponse.pagination:type_name -> xmedia.v1.PaginationResponse
+	8,  // 12: xmedia.v1.ListFavoritesRequest.pagination:type_name -> xmedia.v1.PaginationRequest
 	0,  // 13: xmedia.v1.ListFavoritesRequest.media_type:type_name -> xmedia.v1.MediaType
-	6,  // 14: xmedia.v1.ListFavoritesResponse.items:type_name -> xmedia.v1.MediaItem
-	8,  // 15: xmedia.v1.ListFavoritesResponse.pagination:type_name -> xmedia.v1.PaginationResponse
-	7,  // 16: xmedia.v1.ListSubscriptionsRequest.pagination:type_name -> xmedia.v1.PaginationRequest
-	6,  // 17: xmedia.v1.ListSubscriptionsResponse.items:type_name -> xmedia.v1.MediaItem
-	8,  // 18: xmedia.v1.ListSubscriptionsResponse.pagination:type_name -> xmedia.v1.PaginationResponse
-	34, // 19: xmedia.v1.ControlRequest.play:type_name -> xmedia.v1.PlayPayload
-	35, // 20: xmedia.v1.ControlRequest.pause:type_name -> xmedia.v1.PausePayload
-	36, // 21: xmedia.v1.ControlRequest.stop:type_name -> xmedia.v1.StopPayload
-	37, // 22: xmedia.v1.ControlRequest.seek:type_name -> xmedia.v1.SeekPayload
-	38, // 23: xmedia.v1.ControlRequest.set_volume:type_name -> xmedia.v1.SetVolumePayload
-	39, // 24: xmedia.v1.ControlRequest.set_speed:type_name -> xmedia.v1.SetSpeedPayload
-	40, // 25: xmedia.v1.ControlRequest.set_audio_track:type_name -> xmedia.v1.SetAudioTrackPayload
-	41, // 26: xmedia.v1.ControlRequest.set_subtitle_track:type_name -> xmedia.v1.SetSubtitleTrackPayload
-	42, // 27: xmedia.v1.ControlRequest.next:type_name -> xmedia.v1.NextPayload
-	43, // 28: xmedia.v1.ControlRequest.previous:type_name -> xmedia.v1.PreviousPayload
-	44, // 29: xmedia.v1.ControlRequest.remote_key:type_name -> xmedia.v1.RemoteKeyPayload
-	45, // 30: xmedia.v1.ControlRequest.ping:type_name -> xmedia.v1.PingPayload
+	7,  // 14: xmedia.v1.ListFavoritesResponse.items:type_name -> xmedia.v1.MediaItem
+	9,  // 15: xmedia.v1.ListFavoritesResponse.pagination:type_name -> xmedia.v1.PaginationResponse
+	8,  // 16: xmedia.v1.ListSubscriptionsRequest.pagination:type_name -> xmedia.v1.PaginationRequest
+	7,  // 17: xmedia.v1.ListSubscriptionsResponse.items:type_name -> xmedia.v1.MediaItem
+	9,  // 18: xmedia.v1.ListSubscriptionsResponse.pagination:type_name -> xmedia.v1.PaginationResponse
+	35, // 19: xmedia.v1.ControlRequest.play:type_name -> xmedia.v1.PlayPayload
+	36, // 20: xmedia.v1.ControlRequest.pause:type_name -> xmedia.v1.PausePayload
+	37, // 21: xmedia.v1.ControlRequest.stop:type_name -> xmedia.v1.StopPayload
+	38, // 22: xmedia.v1.ControlRequest.seek:type_name -> xmedia.v1.SeekPayload
+	39, // 23: xmedia.v1.ControlRequest.set_volume:type_name -> xmedia.v1.SetVolumePayload
+	40, // 24: xmedia.v1.ControlRequest.set_speed:type_name -> xmedia.v1.SetSpeedPayload
+	41, // 25: xmedia.v1.ControlRequest.set_audio_track:type_name -> xmedia.v1.SetAudioTrackPayload
+	42, // 26: xmedia.v1.ControlRequest.set_subtitle_track:type_name -> xmedia.v1.SetSubtitleTrackPayload
+	43, // 27: xmedia.v1.ControlRequest.next:type_name -> xmedia.v1.NextPayload
+	44, // 28: xmedia.v1.ControlRequest.previous:type_name -> xmedia.v1.PreviousPayload
+	45, // 29: xmedia.v1.ControlRequest.remote_key:type_name -> xmedia.v1.RemoteKeyPayload
+	46, // 30: xmedia.v1.ControlRequest.ping:type_name -> xmedia.v1.PingPayload
 	4,  // 31: xmedia.v1.RemoteKeyPayload.key:type_name -> xmedia.v1.RemoteKey
-	47, // 32: xmedia.v1.ControlResponse.state_changed:type_name -> xmedia.v1.StateChangedPayload
-	48, // 33: xmedia.v1.ControlResponse.position_updated:type_name -> xmedia.v1.PositionUpdatedPayload
-	49, // 34: xmedia.v1.ControlResponse.volume_changed:type_name -> xmedia.v1.VolumeChangedPayload
-	50, // 35: xmedia.v1.ControlResponse.media_changed:type_name -> xmedia.v1.MediaChangedPayload
-	51, // 36: xmedia.v1.ControlResponse.error:type_name -> xmedia.v1.PlaybackErrorPayload
-	52, // 37: xmedia.v1.ControlResponse.media_ended:type_name -> xmedia.v1.MediaEndedPayload
-	53, // 38: xmedia.v1.ControlResponse.buffering:type_name -> xmedia.v1.BufferingPayload
-	54, // 39: xmedia.v1.ControlResponse.pong:type_name -> xmedia.v1.PongPayload
+	48, // 32: xmedia.v1.ControlResponse.state_changed:type_name -> xmedia.v1.StateChangedPayload
+	49, // 33: xmedia.v1.ControlResponse.position_updated:type_name -> xmedia.v1.PositionUpdatedPayload
+	50, // 34: xmedia.v1.ControlResponse.volume_changed:type_name -> xmedia.v1.VolumeChangedPayload
+	51, // 35: xmedia.v1.ControlResponse.media_changed:type_name -> xmedia.v1.MediaChangedPayload
+	52, // 36: xmedia.v1.ControlResponse.error:type_name -> xmedia.v1.PlaybackErrorPayload
+	53, // 37: xmedia.v1.ControlResponse.media_ended:type_name -> xmedia.v1.MediaEndedPayload
+	54, // 38: xmedia.v1.ControlResponse.buffering:type_name -> xmedia.v1.BufferingPayload
+	55, // 39: xmedia.v1.ControlResponse.pong:type_name -> xmedia.v1.PongPayload
 	3,  // 40: xmedia.v1.StateChangedPayload.state:type_name -> xmedia.v1.PlayerState
-	6,  // 41: xmedia.v1.MediaChangedPayload.media:type_name -> xmedia.v1.MediaItem
-	9,  // 42: xmedia.v1.PlaybackErrorPayload.error:type_name -> xmedia.v1.ErrorDetail
+	7,  // 41: xmedia.v1.MediaChangedPayload.media:type_name -> xmedia.v1.MediaItem
+	10, // 42: xmedia.v1.PlaybackErrorPayload.error:type_name -> xmedia.v1.ErrorDetail
 	3,  // 43: xmedia.v1.PlaybackStateSnapshot.state:type_name -> xmedia.v1.PlayerState
-	6,  // 44: xmedia.v1.PlaybackStateSnapshot.current_media:type_name -> xmedia.v1.MediaItem
-	7,  // 45: xmedia.v1.BrowseLibraryRequest.pagination:type_name -> xmedia.v1.PaginationRequest
+	7,  // 44: xmedia.v1.PlaybackStateSnapshot.current_media:type_name -> xmedia.v1.MediaItem
+	8,  // 45: xmedia.v1.BrowseLibraryRequest.pagination:type_name -> xmedia.v1.PaginationRequest
 	0,  // 46: xmedia.v1.BrowseLibraryRequest.media_type:type_name -> xmedia.v1.MediaType
 	1,  // 47: xmedia.v1.BrowseLibraryRequest.source:type_name -> xmedia.v1.MediaSource
-	6,  // 48: xmedia.v1.BrowseLibraryResponse.items:type_name -> xmedia.v1.MediaItem
-	8,  // 49: xmedia.v1.BrowseLibraryResponse.pagination:type_name -> xmedia.v1.PaginationResponse
-	6,  // 50: xmedia.v1.MediaDetail.media:type_name -> xmedia.v1.MediaItem
-	60, // 51: xmedia.v1.MediaDetail.seasons:type_name -> xmedia.v1.Season
-	61, // 52: xmedia.v1.Season.episodes:type_name -> xmedia.v1.Episode
-	7,  // 53: xmedia.v1.SearchRequest.pagination:type_name -> xmedia.v1.PaginationRequest
+	7,  // 48: xmedia.v1.BrowseLibraryResponse.items:type_name -> xmedia.v1.MediaItem
+	9,  // 49: xmedia.v1.BrowseLibraryResponse.pagination:type_name -> xmedia.v1.PaginationResponse
+	7,  // 50: xmedia.v1.MediaDetail.media:type_name -> xmedia.v1.MediaItem
+	61, // 51: xmedia.v1.MediaDetail.seasons:type_name -> xmedia.v1.Season
+	62, // 52: xmedia.v1.Season.episodes:type_name -> xmedia.v1.Episode
+	8,  // 53: xmedia.v1.SearchRequest.pagination:type_name -> xmedia.v1.PaginationRequest
 	0,  // 54: xmedia.v1.SearchRequest.media_type:type_name -> xmedia.v1.MediaType
-	6,  // 55: xmedia.v1.SearchResponse.items:type_name -> xmedia.v1.MediaItem
-	8,  // 56: xmedia.v1.SearchResponse.pagination:type_name -> xmedia.v1.PaginationResponse
-	70, // 57: xmedia.v1.GetPlayUrlResponse.headers:type_name -> xmedia.v1.GetPlayUrlResponse.HeadersEntry
-	71, // 58: xmedia.v1.GetPlayUrlResponse.expires_at:type_name -> google.protobuf.Timestamp
-	6,  // 59: xmedia.v1.GetExploreFeedResponse.trending:type_name -> xmedia.v1.MediaItem
-	6,  // 60: xmedia.v1.GetExploreFeedResponse.popular:type_name -> xmedia.v1.MediaItem
-	6,  // 61: xmedia.v1.GetExploreFeedResponse.top_rated:type_name -> xmedia.v1.MediaItem
-	10, // 62: xmedia.v1.AuthService.Login:input_type -> xmedia.v1.LoginRequest
-	12, // 63: xmedia.v1.AuthService.RefreshToken:input_type -> xmedia.v1.RefreshTokenRequest
-	14, // 64: xmedia.v1.AuthService.Logout:input_type -> xmedia.v1.LogoutRequest
-	17, // 65: xmedia.v1.MediaService.ListPlaylists:input_type -> xmedia.v1.ListPlaylistsRequest
-	19, // 66: xmedia.v1.MediaService.GetPlaylist:input_type -> xmedia.v1.GetPlaylistRequest
-	20, // 67: xmedia.v1.MediaService.CreatePlaylist:input_type -> xmedia.v1.CreatePlaylistRequest
-	21, // 68: xmedia.v1.MediaService.UpdatePlaylist:input_type -> xmedia.v1.UpdatePlaylistRequest
-	22, // 69: xmedia.v1.MediaService.DeletePlaylist:input_type -> xmedia.v1.DeletePlaylistRequest
-	23, // 70: xmedia.v1.MediaService.AddMediaToPlaylist:input_type -> xmedia.v1.AddMediaToPlaylistRequest
-	24, // 71: xmedia.v1.MediaService.RemoveMediaFromPlaylist:input_type -> xmedia.v1.RemoveMediaFromPlaylistRequest
-	25, // 72: xmedia.v1.MediaService.ListFavorites:input_type -> xmedia.v1.ListFavoritesRequest
-	27, // 73: xmedia.v1.MediaService.AddFavorite:input_type -> xmedia.v1.AddFavoriteRequest
-	28, // 74: xmedia.v1.MediaService.RemoveFavorite:input_type -> xmedia.v1.RemoveFavoriteRequest
-	29, // 75: xmedia.v1.MediaService.ListSubscriptions:input_type -> xmedia.v1.ListSubscriptionsRequest
-	31, // 76: xmedia.v1.MediaService.Subscribe:input_type -> xmedia.v1.SubscribeRequest
-	32, // 77: xmedia.v1.MediaService.Unsubscribe:input_type -> xmedia.v1.UnsubscribeRequest
-	33, // 78: xmedia.v1.PlaybackControlService.ControlStream:input_type -> xmedia.v1.ControlRequest
-	72, // 79: xmedia.v1.PlaybackControlService.GetPlaybackState:input_type -> google.protobuf.Empty
-	56, // 80: xmedia.v1.ContentService.BrowseLibrary:input_type -> xmedia.v1.BrowseLibraryRequest
-	58, // 81: xmedia.v1.ContentService.GetMediaDetail:input_type -> xmedia.v1.GetMediaDetailRequest
-	62, // 82: xmedia.v1.ContentService.Search:input_type -> xmedia.v1.SearchRequest
-	64, // 83: xmedia.v1.ContentService.GetPlayUrl:input_type -> xmedia.v1.GetPlayUrlRequest
-	66, // 84: xmedia.v1.ContentService.GetExploreFeed:input_type -> xmedia.v1.GetExploreFeedRequest
-	72, // 85: xmedia.v1.HealthService.Check:input_type -> google.protobuf.Empty
-	11, // 86: xmedia.v1.AuthService.Login:output_type -> xmedia.v1.LoginResponse
-	13, // 87: xmedia.v1.AuthService.RefreshToken:output_type -> xmedia.v1.RefreshTokenResponse
-	15, // 88: xmedia.v1.AuthService.Logout:output_type -> xmedia.v1.LogoutResponse
-	18, // 89: xmedia.v1.MediaService.ListPlaylists:output_type -> xmedia.v1.ListPlaylistsResponse
-	16, // 90: xmedia.v1.MediaService.GetPlaylist:output_type -> xmedia.v1.Playlist
-	16, // 91: xmedia.v1.MediaService.CreatePlaylist:output_type -> xmedia.v1.Playlist
-	16, // 92: xmedia.v1.MediaService.UpdatePlaylist:output_type -> xmedia.v1.Playlist
-	72, // 93: xmedia.v1.MediaService.DeletePlaylist:output_type -> google.protobuf.Empty
-	16, // 94: xmedia.v1.MediaService.AddMediaToPlaylist:output_type -> xmedia.v1.Playlist
-	16, // 95: xmedia.v1.MediaService.RemoveMediaFromPlaylist:output_type -> xmedia.v1.Playlist
-	26, // 96: xmedia.v1.MediaService.ListFavorites:output_type -> xmedia.v1.ListFavoritesResponse
-	72, // 97: xmedia.v1.MediaService.AddFavorite:output_type -> google.protobuf.Empty
-	72, // 98: xmedia.v1.MediaService.RemoveFavorite:output_type -> google.protobuf.Empty
-	30, // 99: xmedia.v1.MediaService.ListSubscriptions:output_type -> xmedia.v1.ListSubscriptionsResponse
-	72, // 100: xmedia.v1.MediaService.Subscribe:output_type -> google.protobuf.Empty
-	72, // 101: xmedia.v1.MediaService.Unsubscribe:output_type -> google.protobuf.Empty
-	46, // 102: xmedia.v1.PlaybackControlService.ControlStream:output_type -> xmedia.v1.ControlResponse
-	55, // 103: xmedia.v1.PlaybackControlService.GetPlaybackState:output_type -> xmedia.v1.PlaybackStateSnapshot
-	57, // 104: xmedia.v1.ContentService.BrowseLibrary:output_type -> xmedia.v1.BrowseLibraryResponse
-	59, // 105: xmedia.v1.ContentService.GetMediaDetail:output_type -> xmedia.v1.MediaDetail
-	63, // 106: xmedia.v1.ContentService.Search:output_type -> xmedia.v1.SearchResponse
-	65, // 107: xmedia.v1.ContentService.GetPlayUrl:output_type -> xmedia.v1.GetPlayUrlResponse
-	67, // 108: xmedia.v1.ContentService.GetExploreFeed:output_type -> xmedia.v1.GetExploreFeedResponse
-	68, // 109: xmedia.v1.HealthService.Check:output_type -> xmedia.v1.HealthCheckResponse
-	86, // [86:110] is the sub-list for method output_type
-	62, // [62:86] is the sub-list for method input_type
-	62, // [62:62] is the sub-list for extension type_name
-	62, // [62:62] is the sub-list for extension extendee
-	0,  // [0:62] is the sub-list for field type_name
+	7,  // 55: xmedia.v1.SearchResponse.items:type_name -> xmedia.v1.MediaItem
+	9,  // 56: xmedia.v1.SearchResponse.pagination:type_name -> xmedia.v1.PaginationResponse
+	73, // 57: xmedia.v1.GetPlayUrlResponse.headers:type_name -> xmedia.v1.GetPlayUrlResponse.HeadersEntry
+	74, // 58: xmedia.v1.GetPlayUrlResponse.expires_at:type_name -> google.protobuf.Timestamp
+	7,  // 59: xmedia.v1.GetExploreFeedResponse.trending:type_name -> xmedia.v1.MediaItem
+	7,  // 60: xmedia.v1.GetExploreFeedResponse.popular:type_name -> xmedia.v1.MediaItem
+	7,  // 61: xmedia.v1.GetExploreFeedResponse.top_rated:type_name -> xmedia.v1.MediaItem
+	5,  // 62: xmedia.v1.TransferStatusResponse.status:type_name -> xmedia.v1.TransferStatus
+	11, // 63: xmedia.v1.AuthService.Login:input_type -> xmedia.v1.LoginRequest
+	13, // 64: xmedia.v1.AuthService.RefreshToken:input_type -> xmedia.v1.RefreshTokenRequest
+	15, // 65: xmedia.v1.AuthService.Logout:input_type -> xmedia.v1.LogoutRequest
+	18, // 66: xmedia.v1.MediaService.ListPlaylists:input_type -> xmedia.v1.ListPlaylistsRequest
+	20, // 67: xmedia.v1.MediaService.GetPlaylist:input_type -> xmedia.v1.GetPlaylistRequest
+	21, // 68: xmedia.v1.MediaService.CreatePlaylist:input_type -> xmedia.v1.CreatePlaylistRequest
+	22, // 69: xmedia.v1.MediaService.UpdatePlaylist:input_type -> xmedia.v1.UpdatePlaylistRequest
+	23, // 70: xmedia.v1.MediaService.DeletePlaylist:input_type -> xmedia.v1.DeletePlaylistRequest
+	24, // 71: xmedia.v1.MediaService.AddMediaToPlaylist:input_type -> xmedia.v1.AddMediaToPlaylistRequest
+	25, // 72: xmedia.v1.MediaService.RemoveMediaFromPlaylist:input_type -> xmedia.v1.RemoveMediaFromPlaylistRequest
+	26, // 73: xmedia.v1.MediaService.ListFavorites:input_type -> xmedia.v1.ListFavoritesRequest
+	28, // 74: xmedia.v1.MediaService.AddFavorite:input_type -> xmedia.v1.AddFavoriteRequest
+	29, // 75: xmedia.v1.MediaService.RemoveFavorite:input_type -> xmedia.v1.RemoveFavoriteRequest
+	30, // 76: xmedia.v1.MediaService.ListSubscriptions:input_type -> xmedia.v1.ListSubscriptionsRequest
+	32, // 77: xmedia.v1.MediaService.Subscribe:input_type -> xmedia.v1.SubscribeRequest
+	33, // 78: xmedia.v1.MediaService.Unsubscribe:input_type -> xmedia.v1.UnsubscribeRequest
+	34, // 79: xmedia.v1.PlaybackControlService.ControlStream:input_type -> xmedia.v1.ControlRequest
+	75, // 80: xmedia.v1.PlaybackControlService.GetPlaybackState:input_type -> google.protobuf.Empty
+	57, // 81: xmedia.v1.ContentService.BrowseLibrary:input_type -> xmedia.v1.BrowseLibraryRequest
+	59, // 82: xmedia.v1.ContentService.GetMediaDetail:input_type -> xmedia.v1.GetMediaDetailRequest
+	63, // 83: xmedia.v1.ContentService.Search:input_type -> xmedia.v1.SearchRequest
+	65, // 84: xmedia.v1.ContentService.GetPlayUrl:input_type -> xmedia.v1.GetPlayUrlRequest
+	67, // 85: xmedia.v1.ContentService.GetExploreFeed:input_type -> xmedia.v1.GetExploreFeedRequest
+	69, // 86: xmedia.v1.TransferService.GetTransferStatus:input_type -> xmedia.v1.TransferStatusRequest
+	69, // 87: xmedia.v1.TransferService.CancelTransfer:input_type -> xmedia.v1.TransferStatusRequest
+	75, // 88: xmedia.v1.HealthService.Check:input_type -> google.protobuf.Empty
+	12, // 89: xmedia.v1.AuthService.Login:output_type -> xmedia.v1.LoginResponse
+	14, // 90: xmedia.v1.AuthService.RefreshToken:output_type -> xmedia.v1.RefreshTokenResponse
+	16, // 91: xmedia.v1.AuthService.Logout:output_type -> xmedia.v1.LogoutResponse
+	19, // 92: xmedia.v1.MediaService.ListPlaylists:output_type -> xmedia.v1.ListPlaylistsResponse
+	17, // 93: xmedia.v1.MediaService.GetPlaylist:output_type -> xmedia.v1.Playlist
+	17, // 94: xmedia.v1.MediaService.CreatePlaylist:output_type -> xmedia.v1.Playlist
+	17, // 95: xmedia.v1.MediaService.UpdatePlaylist:output_type -> xmedia.v1.Playlist
+	75, // 96: xmedia.v1.MediaService.DeletePlaylist:output_type -> google.protobuf.Empty
+	17, // 97: xmedia.v1.MediaService.AddMediaToPlaylist:output_type -> xmedia.v1.Playlist
+	17, // 98: xmedia.v1.MediaService.RemoveMediaFromPlaylist:output_type -> xmedia.v1.Playlist
+	27, // 99: xmedia.v1.MediaService.ListFavorites:output_type -> xmedia.v1.ListFavoritesResponse
+	75, // 100: xmedia.v1.MediaService.AddFavorite:output_type -> google.protobuf.Empty
+	75, // 101: xmedia.v1.MediaService.RemoveFavorite:output_type -> google.protobuf.Empty
+	31, // 102: xmedia.v1.MediaService.ListSubscriptions:output_type -> xmedia.v1.ListSubscriptionsResponse
+	75, // 103: xmedia.v1.MediaService.Subscribe:output_type -> google.protobuf.Empty
+	75, // 104: xmedia.v1.MediaService.Unsubscribe:output_type -> google.protobuf.Empty
+	47, // 105: xmedia.v1.PlaybackControlService.ControlStream:output_type -> xmedia.v1.ControlResponse
+	56, // 106: xmedia.v1.PlaybackControlService.GetPlaybackState:output_type -> xmedia.v1.PlaybackStateSnapshot
+	58, // 107: xmedia.v1.ContentService.BrowseLibrary:output_type -> xmedia.v1.BrowseLibraryResponse
+	60, // 108: xmedia.v1.ContentService.GetMediaDetail:output_type -> xmedia.v1.MediaDetail
+	64, // 109: xmedia.v1.ContentService.Search:output_type -> xmedia.v1.SearchResponse
+	66, // 110: xmedia.v1.ContentService.GetPlayUrl:output_type -> xmedia.v1.GetPlayUrlResponse
+	68, // 111: xmedia.v1.ContentService.GetExploreFeed:output_type -> xmedia.v1.GetExploreFeedResponse
+	70, // 112: xmedia.v1.TransferService.GetTransferStatus:output_type -> xmedia.v1.TransferStatusResponse
+	70, // 113: xmedia.v1.TransferService.CancelTransfer:output_type -> xmedia.v1.TransferStatusResponse
+	71, // 114: xmedia.v1.HealthService.Check:output_type -> xmedia.v1.HealthCheckResponse
+	89, // [89:115] is the sub-list for method output_type
+	63, // [63:89] is the sub-list for method input_type
+	63, // [63:63] is the sub-list for extension type_name
+	63, // [63:63] is the sub-list for extension extendee
+	0,  // [0:63] is the sub-list for field type_name
 }
 
 func init() { file_xmedia_v1_api_proto_init() }
@@ -4833,10 +5042,10 @@ func file_xmedia_v1_api_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_xmedia_v1_api_proto_rawDesc), len(file_xmedia_v1_api_proto_rawDesc)),
-			NumEnums:      5,
-			NumMessages:   66,
+			NumEnums:      6,
+			NumMessages:   68,
 			NumExtensions: 0,
-			NumServices:   5,
+			NumServices:   6,
 		},
 		GoTypes:           file_xmedia_v1_api_proto_goTypes,
 		DependencyIndexes: file_xmedia_v1_api_proto_depIdxs,

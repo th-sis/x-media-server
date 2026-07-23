@@ -49,10 +49,11 @@ func main() {
 	// ── Services ──
 	authSvc := service.NewAuthService(cfg, db)
 	mediaSvc := &service.MediaService{}
-	playbackSvc := service.NewPlaybackService(stateStore)
+	playbackSvc := service.NewPlaybackService()
 	contentSvc := &service.ContentService{}
 	healthSvc := service.NewHealthService()
-	transferSvc := service.NewTransferService(cfg, stateStore)
+	transferStore := service.NewTransferTaskStore()
+	transferSvc := service.NewTransferService(transferStore)
 
 	// ── gRPC Server ──
 	authInterceptor := service.AuthInterceptor(cfg)
@@ -68,9 +69,8 @@ func main() {
 	pb.RegisterMediaServiceServer(grpcSrv, mediaSvc)
 	pb.RegisterPlaybackControlServiceServer(grpcSrv, playbackSvc)
 	pb.RegisterContentServiceServer(grpcSrv, contentSvc)
+	pb.RegisterTransferServiceServer(grpcSrv, transferSvc)
 	pb.RegisterHealthServiceServer(grpcSrv, healthSvc)
-
-	_ = transferSvc // used via HTTP API
 
 	reflection.Register(grpcSrv)
 

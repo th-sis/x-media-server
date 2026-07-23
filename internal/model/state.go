@@ -8,6 +8,7 @@ import (
 // PlaybackSession holds per-user playback state.
 // Uses sync.Map internally for lock-free concurrent access.
 type PlaybackSession struct {
+	DeviceID   string
 	UserID     string
 	MediaID    string
 	Title      string
