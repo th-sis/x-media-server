@@ -1,30 +1,13 @@
 # ══════════════════════════════════════════════════════════════
-# X-Media Server v0.2.0 — TrueNAS SCALE 25.10 (Goldeye)
-#
+# X-Media Server v0.2.0 — TrueNAS SCALE 25.10
 # 部署: Apps → Discover → Custom App → 粘贴此文件
 # ══════════════════════════════════════════════════════════════
 
 services:
-  openlist:
-    image: openlistteam/openlist:latest-lite
-    container_name: xm-openlist
-    restart: unless-stopped
-    user: "568:568"
-    ports:
-      - "5245:5244"
-    environment:
-      OPENLIST_PORT: "5244"
-    volumes:
-      - /mnt/IPT-FILES/XXY-FILE/x-media-server/openlist/data:/opt/openlist/data
-
   x-media-server:
     image: thsis/x-media-server:latest
     container_name: x-media-server
     restart: unless-stopped
-    depends_on:
-      - openlist
-
-    user: "568:568"
 
     ports:
       - "35678:35678"
@@ -34,23 +17,14 @@ services:
       SERVER_GRPC_PORT: ":50051"
       SERVER_HTTP_PORT: ":35678"
       SERVER_EXTERNAL_URL: "http://192.168.7.154:35678"
-      AUTH_JWT_SECRET: "x-media-jwt-change-me-to-random-string"
+      AUTH_JWT_SECRET: "x-media-jwt-change-me"
       AUTH_ADMIN_USER: "admin"
       AUTH_ADMIN_PASS: "admin"
       DB_PATH: "/app/data/xmedia.db"
       TMDB_API_KEY: ""
-      OPENLIST_URL: "http://openlist:5244"
-      PROXY_HTTP: ""
-      PROXY_HTTPS: ""
+      OPENLIST_URL: "http://192.168.7.154:5244"
       LOG_LEVEL: "debug"
 
     volumes:
       - /mnt/IPT-FILES/XXY-FILE/x-media-server/data:/app/data
       - /mnt/IPT-FILES/XXY-FILE/x-media-server/img_cache:/app/img_cache
-
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:35678/healthz"]
-      interval: 30s
-      timeout: 5s
-      start_period: 10s
-      retries: 3
