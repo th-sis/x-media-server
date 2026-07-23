@@ -62,6 +62,9 @@ func main() {
 	// ── System Monitor (10s metrics collection) ──
 	_ = service.NewSystemMonitor(db, cfg.Database.Path, imgCache, service.GlobalSM(), transferStore)
 
+	// ── OpenList Auto-Bootstrap (配置收拢：自动获取/初始化 OpenList Token) ──
+	go service.NewOpenListBootstrapper(db).Bootstrap()
+
 	// ── gRPC Server ──
 	authInterceptor := service.AuthInterceptor(cfg)
 	streamAuthInterceptor := service.StreamAuthInterceptor(cfg)
