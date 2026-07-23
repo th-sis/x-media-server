@@ -199,7 +199,7 @@ func (s *PlaybackService) ControlStream(stream pb.PlaybackControlService_Control
 			stream.Send(&pb.ControlResponse{
 				Payload: &pb.ControlResponse_Pong{
 					Pong: &pb.PongPayload{
-						ClientTimestamp: ping.Ping.ClientTimestamp,
+						ClientTimestamp: p.Ping.ClientTimestamp,
 						ServerTimestamp: time.Now().UnixMilli(),
 					},
 				},
