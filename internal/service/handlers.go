@@ -20,11 +20,19 @@ func RegisterAll(api *mux.Router, cfg *config.Config, db interface{}, state *mod
 	sqlDB := db.(*sql.DB)
 
 	pan115svc := NewPan115Service()
+	pan115svc.SetDB(sqlDB)
 	panSearchSvc := NewPanSearchService()
+
+	// Token refresher (100min auto-refresh OpenList/Aliyun/Quark)
+	tokenRefresher := NewTokenRefresher(sqlDB)
+	tokenRefresher.Start()
+
+	// Directory cache (15min TTL anti-rate-limiting)
+	dirCache := NewDirCacheService(sqlDB)
 
 	cfgHandler := NewConfigHandler(sqlDB, img)
 	scrapeHandler := NewScrapeHandler(img)
-	panHandler := NewPanHandler(cfg, sqlDB, pan115svc)
+	panHandler := NewPanHandler(cfg, sqlDB, pan115svc, dirCache)
 	psHandler := NewPanSearchHandler(panSearchSvc)
 	strmHandler := NewStrmHandler(sqlDB)
 	taskHandler := &TaskHandler{}
@@ -50,7 +58,13 @@ func RegisterAll(api *mux.Router, cfg *config.Config, db interface{}, state *mod
 	api.HandleFunc("/pan115/qr/start", panHandler.QRStart).Methods("POST")
 	api.HandleFunc("/pan115/qr/check", panHandler.QRCheck).Methods("POST")
 	api.HandleFunc("/pan115/space", panHandler.Space).Methods("GET")
+	api.HandleFunc("/pan115/direct-link", panHandler.DirectLink).Methods("POST")
+	api.HandleFunc("/pan115/cookie-status", panHandler.CookieStatus).Methods("GET")
 	api.HandleFunc("/pan/space", panHandler.SpaceOverview).Methods("GET")
+
+	// Dir cache
+	api.HandleFunc("/cache/dir", panHandler.DirCacheGet).Methods("GET")
+	api.HandleFunc("/cache/dir/clear", panHandler.DirCacheClear).Methods("POST")
 
 	// PanSearch
 	api.HandleFunc("/pansou/engines", psHandler.ListEngines).Methods("GET")
@@ -225,19 +239,20 @@ func (h *ScrapeHandler) ClearImgCache(w http.ResponseWriter, r *http.Request) {
 // ── PanHandler ──
 
 type PanHandler struct {
-	cfg   *config.Config
-	db    *sql.DB
-	pan115 *Pan115Service
+	cfg      *config.Config
+	db       *sql.DB
+	pan115   *Pan115Service
+	dirCache *DirCacheService
 }
 
-func NewPanHandler(cfg *config.Config, db *sql.DB, pan115 *Pan115Service) *PanHandler {
-	return &PanHandler{cfg: cfg, db: db, pan115: pan115}
+func NewPanHandler(cfg *config.Config, db *sql.DB, pan115 *Pan115Service, dirCache *DirCacheService) *PanHandler {
+	return &PanHandler{cfg: cfg, db: db, pan115: pan115, dirCache: dirCache}
 }
 
 var qrSessions = make(map[string]*QRResult) // uid → result
 
 func (h *PanHandler) QRStart(w http.ResponseWriter, r *http.Request) {
-	result, err := h.pan115.QRLoginStep1()
+	result, err := h.pan115.QRLogin(r.Context())
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
 		return
@@ -258,20 +273,19 @@ func (h *PanHandler) QRCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(r.Body).Decode(&body)
 
-	status, err := h.pan115.QRLoginStep2(body.UID)
+	status, err := h.pan115.QRCheck(r.Context(), body.UID)
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
 		return
 	}
-	// When confirmed, get full cookie via Step3
+	// Cookie already persisted inside QRCheck
 	if status.Status == 2 {
-		fullCookie, err := h.pan115.QRLoginStep3(body.UID)
-		if err == nil && fullCookie != "" {
-			status.Cookie = (status.Cookie + ";" + fullCookie)
-		}
-	}
-	if status.Cookie != "" {
-		database.SetSetting("pan115_cookie", status.Cookie)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":      true,
+			"status":  status.Status,
+			"message": status.Message,
+		})
+		return
 	}
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"ok":      true,
@@ -292,6 +306,44 @@ func (h *PanHandler) SpaceOverview(w http.ResponseWriter, r *http.Request) {
 			{"name": "115网盘", "used": "1.2 TB", "total": "5 TB", "pct": "24"},
 		},
 	})
+}
+
+// ── DirectLink: return 115 direct URL with anti-hotlink headers ──
+func (h *PanHandler) DirectLink(w http.ResponseWriter, r *http.Request) {
+	var body struct{ PickCode string `json:"pick_code"` }
+	json.NewDecoder(r.Body).Decode(&body)
+
+	dl, err := h.pan115.GetDirectLink(r.Context(), body.PickCode)
+	if err != nil {
+		w.WriteHeader(503)
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok":      true,
+		"url":     dl.URL,
+		"headers": dl.Headers,
+	})
+}
+
+func (h *PanHandler) CookieStatus(w http.ResponseWriter, r *http.Request) {
+	valid, _ := h.pan115.ValidateCookie(r.Context())
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": valid})
+}
+
+func (h *PanHandler) DirCacheGet(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	if key == "" {
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false})
+		return
+	}
+	resp, hit := h.dirCache.Get(key)
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": hit, "data": resp})
+}
+
+func (h *PanHandler) DirCacheClear(w http.ResponseWriter, r *http.Request) {
+	h.dirCache.Clean()
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 }
 
 // ── PanSearchHandler ──
