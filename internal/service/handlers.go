@@ -21,7 +21,7 @@ func RegisterAll(api *mux.Router, cfg *config.Config, db interface{}, state *mod
 
 	pan115svc := NewPan115Service()
 	pan115svc.SetDB(sqlDB)
-	panSearchSvc := NewPanSearchService()
+	panSearchSvc := NewPanSearchService(sqlDB)
 
 	// Token refresher (100min auto-refresh OpenList/Aliyun/Quark)
 	tokenRefresher := NewTokenRefresher(sqlDB)
@@ -29,6 +29,9 @@ func RegisterAll(api *mux.Router, cfg *config.Config, db interface{}, state *mod
 
 	// Directory cache (15min TTL anti-rate-limiting)
 	dirCache := NewDirCacheService(sqlDB)
+
+	// Health checker (5-category full-link diagnostics)
+	NewHealthChecker(sqlDB, pan115svc)
 
 	cfgHandler := NewConfigHandler(sqlDB, img)
 	scrapeHandler := NewScrapeHandler(img)
@@ -66,11 +69,12 @@ func RegisterAll(api *mux.Router, cfg *config.Config, db interface{}, state *mod
 	api.HandleFunc("/cache/dir", panHandler.DirCacheGet).Methods("GET")
 	api.HandleFunc("/cache/dir/clear", panHandler.DirCacheClear).Methods("POST")
 
-	// PanSearch
+	// PanSearch — dynamic engine router
 	api.HandleFunc("/pansou/engines", psHandler.ListEngines).Methods("GET")
-	api.HandleFunc("/pansou/engines/toggle", psHandler.ToggleEngine).Methods("POST")
 	api.HandleFunc("/pansou/engines/add", psHandler.AddEngine).Methods("POST")
-	api.HandleFunc("/pansou/speedtest", psHandler.SpeedTest).Methods("POST")
+	api.HandleFunc("/pansou/engines/update", psHandler.UpdateEngine).Methods("POST")
+	api.HandleFunc("/pansou/engines/toggle", psHandler.ToggleEngine).Methods("POST")
+	api.HandleFunc("/pansou/engines/delete", psHandler.DeleteEngine).Methods("POST")
 	api.HandleFunc("/pansou/search", psHandler.Search).Methods("POST")
 
 	// STRM
@@ -83,6 +87,17 @@ func RegisterAll(api *mux.Router, cfg *config.Config, db interface{}, state *mod
 	api.HandleFunc("/admin/logs", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(globalLogBuffer.Snapshot())
+	}).Methods("GET")
+
+	// Full-link health check
+	api.HandleFunc("/health/full", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		hc := GetHealthChecker()
+		if hc == nil {
+			json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "health checker not ready"})
+			return
+		}
+		json.NewEncoder(w).Encode(hc.RunFullCheck())
 	}).Methods("GET")
 }
 
@@ -357,45 +372,80 @@ func NewPanSearchHandler(svc *PanSearchService) *PanSearchHandler {
 }
 
 func (h *PanSearchHandler) ListEngines(w http.ResponseWriter, r *http.Request) {
-	engines := make([]map[string]interface{}, 0)
-	for _, e := range h.svc.engines {
-		engines = append(engines, map[string]interface{}{
-			"name": e.Name, "url": e.URL, "enabled": true,
-			"latency": 0, "success_rate": 100,
-		})
+	engines, err := h.svc.LoadEngines()
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
+		return
 	}
-	json.NewEncoder(w).Encode(map[string]interface{}{"engines": engines})
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "engines": engines})
+}
+
+func (h *PanSearchHandler) AddEngine(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Name        string `json:"name"`
+		BaseURL     string `json:"base_url"`
+		Method      string `json:"method"`
+		Headers     string `json:"headers"`
+		RegexFilter string `json:"regex_filter"`
+		Weight      int    `json:"weight"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+	if body.Method == "" { body.Method = "GET" }
+	if body.Weight == 0 { body.Weight = 100 }
+	err := h.svc.AddEngine(body.Name, body.BaseURL, body.Method, body.Headers, body.RegexFilter, body.Weight)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "message": "engine added"})
+}
+
+func (h *PanSearchHandler) UpdateEngine(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		ID          int    `json:"id"`
+		Name        string `json:"name"`
+		BaseURL     string `json:"base_url"`
+		Method      string `json:"method"`
+		Headers     string `json:"headers"`
+		RegexFilter string `json:"regex_filter"`
+		Weight      int    `json:"weight"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+	err := h.svc.UpdateEngine(body.ID, body.Name, body.BaseURL, body.Method, body.Headers, body.RegexFilter, body.Weight)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "message": "engine updated"})
+}
+
+func (h *PanSearchHandler) ToggleEngine(w http.ResponseWriter, r *http.Request) {
+	var body struct{ ID int `json:"id"`; Enabled bool `json:"enabled"` }
+	json.NewDecoder(r.Body).Decode(&body)
+	err := h.svc.ToggleEngine(body.ID, body.Enabled)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+}
+
+func (h *PanSearchHandler) DeleteEngine(w http.ResponseWriter, r *http.Request) {
+	var body struct{ ID int `json:"id"` }
+	json.NewDecoder(r.Body).Decode(&body)
+	h.svc.DeleteEngine(body.ID)
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 }
 
 func (h *PanSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Query string `json:"query"`
-	}
+	var body struct{ Query string `json:"query"` }
 	json.NewDecoder(r.Body).Decode(&body)
-
 	if body.Query == "" {
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "empty query"})
 		return
 	}
-	results := h.svc.SearchAll(body.Query, 50, "720P", 3)
+	results := h.svc.SearchAll(body.Query, 3)
 	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "results": results})
-}
-
-func (h *PanSearchHandler) ToggleEngine(w http.ResponseWriter, r *http.Request) {
-	var body struct{ Index int `json:"index"` }
-	json.NewDecoder(r.Body).Decode(&body)
-	json.NewEncoder(w).Encode(map[string]string{"status": "toggled"})
-}
-
-func (h *PanSearchHandler) AddEngine(w http.ResponseWriter, r *http.Request) {
-	var body struct{ Name string `json:"name"`; URL string `json:"url"` }
-	json.NewDecoder(r.Body).Decode(&body)
-	h.svc.engines = append(h.svc.engines, SearchEngine{Name: body.Name, URL: body.URL})
-	json.NewEncoder(w).Encode(map[string]string{"status": "added"})
-}
-
-func (h *PanSearchHandler) SpeedTest(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"status": "speedtest started"})
 }
 
 // ── StrmHandler ──

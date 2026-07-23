@@ -83,6 +83,20 @@ func migrate(db *sql.DB) error {
 		PRIMARY KEY (media_id, source)
 	);
 
+	-- Dynamic search engine router (hot-reload, no hardcoding)
+	CREATE TABLE IF NOT EXISTS search_engines (
+		id          INTEGER PRIMARY KEY AUTOINCREMENT,
+		name        TEXT NOT NULL,
+		base_url    TEXT NOT NULL,
+		method      TEXT NOT NULL DEFAULT 'GET',
+		headers     TEXT NOT NULL DEFAULT '{}',
+		regex_filter TEXT NOT NULL DEFAULT '',
+		weight      INTEGER NOT NULL DEFAULT 100,
+		enabled     INTEGER NOT NULL DEFAULT 1,
+		created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+		updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+	);
+
 	-- Playback history (resume position per media)
 	CREATE TABLE IF NOT EXISTS play_history (
 		id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -146,7 +160,30 @@ func migrate(db *sql.DB) error {
 	for k, v := range defaults {
 		db.Exec(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`, k, v)
 	}
+	// Seed search engines (hot-reloadable, user-editable via admin panel)
+	seedSearchEngines(db)
 	return nil
+}
+
+func seedSearchEngines(db *sql.DB) {
+	engines := []struct {
+		name, url, method, headers, regex string
+		weight int
+	}{
+		{"Pansou", "https://api.pansou.com/search?keyword={query}", "GET",
+			`{"User-Agent":"Mozilla/5.0"}`,
+			`magnet:\?xt=urn:btih:[a-fA-F0-9]{32,40}`, 100},
+		{"猫狸盘搜", "https://www.maolipansou.com/api/search?keyword={query}", "GET",
+			`{"User-Agent":"Mozilla/5.0"}`,
+			`(magnet:\?xt=urn:btih:[a-fA-F0-9]{32,40})|(pan\.115\.com/s/[^\s"']+)`, 90},
+		{"Go-Pansearch", "https://go-pansearch.pages.dev/api/search?keyword={query}", "GET",
+			`{"User-Agent":"Mozilla/5.0"}`,
+			`(magnet:\?xt=urn:btih:[a-fA-F0-9]{32,40})`, 80},
+	}
+	for _, e := range engines {
+		db.Exec(`INSERT OR IGNORE INTO search_engines (name, base_url, method, headers, regex_filter, weight) VALUES (?, ?, ?, ?, ?, ?)`,
+			e.name, e.url, e.method, e.headers, e.regex, e.weight)
+	}
 }
 
 // ── Settings helpers ──
