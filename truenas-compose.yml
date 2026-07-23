@@ -1,0 +1,75 @@
+# ══════════════════════════════════════════════════════════════
+# X-Media Server — TrueNAS SCALE 25.10+ (Goldeye)
+# 
+# 部署方式（二选一）:
+#   A. Custom App (Web UI): Apps → Discover → Custom App → 粘贴此 YAML
+#   B. 命令行: docker compose -f truenas-compose.yml up -d
+#
+# 外部访问: http://192.168.7.154:35678/config
+# gRPC 端口: 192.168.7.154:50051
+# ══════════════════════════════════════════════════════════════
+
+version: "3.9"
+
+services:
+  x-media-server:
+    image: thsis/x-media-server:latest
+    container_name: x-media-server
+    restart: unless-stopped
+
+    ports:
+      - "35678:35678"   # HTTP Admin Panel + Healthz + Image Proxy
+      - "50051:50051"   # gRPC for Flutter client
+
+    environment:
+      # ── 服务器 ──
+      SERVER_GRPC_PORT: ":50051"
+      SERVER_HTTP_PORT: ":35678"
+      SERVER_EXTERNAL_URL: "http://192.168.7.154:35678"
+
+      # ── 鉴权（务必修改默认值）──
+      AUTH_JWT_SECRET: "x-media-jwt-change-me-to-random-string"
+      AUTH_ADMIN_USER: "admin"
+      AUTH_ADMIN_PASS: "admin"
+
+      # ── 数据库 ──
+      DB_PATH: "/app/data/xmedia.db"
+
+      # ── TMDB API（需要你的 Key）──
+      TMDB_API_KEY: ""
+
+      # ── Emby / 小雅 Emby ──
+      EMBY_SERVER_URL: "http://192.168.7.1:2345"
+      EMBY_USERNAME: "xiaoya"
+      EMBY_PASSWORD: ""
+
+      # ── 代理（OpenWRT 主路由已翻可不配）──
+      PROXY_HTTP: ""
+      PROXY_HTTPS: ""
+
+      # ── 日志 ──
+      LOG_LEVEL: "debug"
+
+    volumes:
+      # SQLite 数据库持久化（重启不丢失）
+      - /mnt/APP/x-media-server/data:/app/data
+
+      # TMDB 图片缓存持久化
+      - /mnt/APP/x-media-server/img_cache:/app/img_cache
+
+      # STRM 输出路径（与 Emby 共享）
+      - /mnt/IPT-FILES/XXY-FILE/Emby/strm:/app/strm
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:35678/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+    networks:
+      - x-media
+
+networks:
+  x-media:
+    driver: bridge
