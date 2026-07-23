@@ -339,7 +339,7 @@ func openControlStream(conn *grpc.ClientConn, token string) pb.PlaybackControlSe
 		fatal("ControlStream failed: %v", err)
 	}
 
-	// Send device registration first
+	// Send device registration
 	err = stream.Send(&pb.ControlRequest{
 		SequenceId: 0,
 		Payload: &pb.ControlRequest_Ping{
@@ -352,7 +352,18 @@ func openControlStream(conn *grpc.ClientConn, token string) pb.PlaybackControlSe
 	if err != nil {
 		fatal("Device registration failed: %v", err)
 	}
-	log("✅ ControlStream established — device: %s", *deviceID)
+
+	// Wait for server ACK (Pong) before returning
+	resp, err := stream.Recv()
+	if err != nil {
+		fatal("Registration ACK failed: %v", err)
+	}
+	if pong, ok := resp.Payload.(*pb.ControlResponse_Pong); ok {
+		rtt := time.Now().UnixMilli() - pong.Pong.ClientTimestamp
+		log("✅ ControlStream established — device: %s (RTT: %dms)", *deviceID, rtt)
+	} else {
+		log("✅ ControlStream established — device: %s (no Pong ACK)", *deviceID)
+	}
 	return stream
 }
 

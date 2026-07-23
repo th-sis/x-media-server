@@ -29,6 +29,9 @@ func AuthInterceptor(cfg *config.Config) grpc.UnaryServerInterceptor {
 // StreamAuthInterceptor validates JWT for gRPC streams
 func StreamAuthInterceptor(cfg *config.Config) grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		if info.FullMethod == "/xmedia.v1.PlaybackControlService/ControlStream" {
+			return handler(srv, ss) // Allow ControlStream — auth via device registration
+		}
 		_, err := authenticate(ss.Context(), cfg)
 		if err != nil {
 			return err
