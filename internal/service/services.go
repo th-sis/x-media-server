@@ -139,6 +139,7 @@ func (s *PlaybackService) ControlStream(stream pb.PlaybackControlService_Control
 		Stream:   stream,
 		ctx:      ctx,
 		Cancel:   cancel,
+		keyQueue: make(chan *pb.ControlRequest, 64),
 		State: &model.PlaybackSession{
 			DeviceID: deviceID,
 			State:    "idle",
@@ -150,7 +151,7 @@ func (s *PlaybackService) ControlStream(stream pb.PlaybackControlService_Control
 	// Acknowledge registration
 	stream.Send(&pb.ControlResponse{
 		Payload: &pb.ControlResponse_Pong{
-			Pong: &pb.PongPayload{ClientTimestamp: req.SequenceId, ServerTimestamp: time.Now().UnixMilli()},
+			Pong: &pb.PongPayload{ClientTimestamp: ping.Ping.ClientTimestamp, ServerTimestamp: time.Now().UnixMilli()},
 		},
 	})
 
