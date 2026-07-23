@@ -1,0 +1,10 @@
+name: xmedia_test
+description: X-Media CLI mock player for gRPC integration testing
+publish_to: none
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  grpc: ^3.2.4
+  protobuf: ^3.1.0
