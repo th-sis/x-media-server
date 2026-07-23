@@ -13,7 +13,7 @@ import (
 
 	"github.com/th-sis/x-media-server/internal/config"
 	"github.com/th-sis/x-media-server/internal/model"
-	pb "github.com/th-sis/x-media-server/gen/go/xmedia/v1"
+	xmedia "github.com/th-sis/x-media-server/gen/go/xmedia/v1"
 )
 
 const bufSize = 1024 * 1024
@@ -38,7 +38,7 @@ func TestAuthLogin(t *testing.T) {
 		RefreshTokenTTL: 7200,
 	}}
 	authSvc := NewAuthService(cfg, nil)
-	pb.RegisterAuthServiceServer(srv, authSvc)
+	xmedia.RegisterAuthServiceServer(srv, authSvc)
 
 	go srv.Serve(lis)
 	defer srv.Stop()
@@ -53,10 +53,10 @@ func TestAuthLogin(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := pb.NewAuthServiceClient(conn)
+	client := xmedia.NewAuthServiceClient(conn)
 
 	// Test valid login
-	resp, err := client.Login(ctx, &pb.LoginRequest{Username: "admin", Password: "admin"})
+	resp, err := client.Login(ctx, &xmedia.LoginRequest{Username: "admin", Password: "admin"})
 	if err != nil {
 		t.Fatalf("Login failed: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestAuthLogin(t *testing.T) {
 	}
 
 	// Test invalid login
-	_, err = client.Login(ctx, &pb.LoginRequest{Username: "admin", Password: "wrong"})
+	_, err = client.Login(ctx, &xmedia.LoginRequest{Username: "admin", Password: "wrong"})
 	if err == nil {
 		t.Error("expected error for invalid credentials")
 	}
@@ -82,7 +82,7 @@ func TestHealthCheck(t *testing.T) {
 	lis := bufconn.Listen(bufSize)
 	srv := grpc.NewServer()
 	healthSvc := NewHealthService()
-	pb.RegisterHealthServiceServer(srv, healthSvc)
+	xmedia.RegisterHealthServiceServer(srv, healthSvc)
 
 	go srv.Serve(lis)
 	defer srv.Stop()
@@ -94,7 +94,7 @@ func TestHealthCheck(t *testing.T) {
 	)
 	defer conn.Close()
 
-	client := pb.NewHealthServiceClient(conn)
+	client := xmedia.NewHealthServiceClient(conn)
 	resp, err := client.Check(ctx, &emptypb.Empty{})
 	if err != nil {
 		t.Fatalf("Health check failed: %v", err)
@@ -114,9 +114,8 @@ func TestControlStream(t *testing.T) {
 	interceptor := AuthInterceptor(cfg)
 
 	srv := grpc.NewServer(grpc.UnaryInterceptor(interceptor))
-	stateStore := model.NewStateStore()
-	playbackSvc := NewPlaybackService(stateStore)
-	pb.RegisterPlaybackControlServiceServer(srv, playbackSvc)
+	playbackSvc := NewPlaybackService()
+	xmedia.RegisterPlaybackControlServiceServer(srv, playbackSvc)
 
 	go srv.Serve(lis)
 	defer srv.Stop()
@@ -128,13 +127,13 @@ func TestControlStream(t *testing.T) {
 	)
 	defer conn.Close()
 
-	client := pb.NewPlaybackControlServiceClient(conn)
+	client := xmedia.NewPlaybackControlServiceClient(conn)
 
 	// Test GetPlaybackState (no auth needed in test — we skip the interceptor for this)
 	resp, err := client.GetPlaybackState(ctx, &emptypb.Empty{})
 	if err != nil {
 		t.Logf("GetPlaybackState (expected auth error in strict mode): %v", err)
-	} else if resp.State != pb.PlayerState_PLAYER_STATE_IDLE {
+	} else if resp.State != xmedia.PlayerState_PLAYER_STATE_IDLE {
 		t.Errorf("expected IDLE, got %v", resp.State)
 	}
 
@@ -152,7 +151,7 @@ func BenchmarkAuthLogin(b *testing.B) {
 	authSvc := NewAuthService(cfg, nil)
 
 	srv := grpc.NewServer()
-	pb.RegisterAuthServiceServer(srv, authSvc)
+	xmedia.RegisterAuthServiceServer(srv, authSvc)
 	go srv.Serve(lis)
 	defer srv.Stop()
 
@@ -161,12 +160,12 @@ func BenchmarkAuthLogin(b *testing.B) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	defer conn.Close()
-	client := pb.NewAuthServiceClient(conn)
+	client := xmedia.NewAuthServiceClient(conn)
 
 	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_, err := client.Login(context.Background(), &pb.LoginRequest{
+	b.RunParallel(func(p *testing.PB) {
+		for p.Next() {
+			_, err := client.Login(context.Background(), &xmedia.LoginRequest{
 				Username: "admin", Password: "admin",
 			})
 			if err != nil {
@@ -179,9 +178,9 @@ func BenchmarkAuthLogin(b *testing.B) {
 // ── Benchmark: TransferTask creation (100 concurrent) ──
 
 func BenchmarkTransferTaskCreation(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func(p *testing.PB) {
 		i := 0
-		for pb.Next() {
+		for p.Next() {
 			task := model.NewTransferTask("media-"+string(rune(i)), "http://source", "quark")
 			task.Status = model.TransferDownloading
 			task.Progress = 50
