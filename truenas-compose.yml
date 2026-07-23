@@ -1,12 +1,8 @@
 # ══════════════════════════════════════════════════════════════
-# X-Media Server — TrueNAS SCALE 25.10+ (Goldeye)
-# 
-# 部署方式（二选一）:
-#   A. Custom App (Web UI): Apps → Discover → Custom App → 粘贴此 YAML
-#   B. 命令行: docker compose -f truenas-compose.yml up -d
+# X-Media Server — TrueNAS SCALE 25.10 (Goldeye)
 #
-# 外部访问: http://192.168.7.154:35678/config
-# gRPC 端口: 192.168.7.154:50051
+# 部署: Apps → Discover → Custom App → 粘贴此文件
+# 访问: http://192.168.7.154:35678/config
 # ══════════════════════════════════════════════════════════════
 
 version: "3.9"
@@ -17,48 +13,46 @@ services:
     container_name: x-media-server
     restart: unless-stopped
 
+    # TrueNAS SCALE App 用户
+    user: "568:568"
+
     ports:
-      - "35678:35678"   # HTTP Admin Panel + Healthz + Image Proxy
-      - "50051:50051"   # gRPC for Flutter client
+      - "35678:35678"   # HTTP 管理面板 + 健康检查 + 图片代理
+      - "50051:50051"   # gRPC（Flutter 客户端播放控制通信）
 
     environment:
-      # ── 服务器 ──
+      # ── 基础设施 ──
       SERVER_GRPC_PORT: ":50051"
       SERVER_HTTP_PORT: ":35678"
       SERVER_EXTERNAL_URL: "http://192.168.7.154:35678"
 
-      # ── 鉴权（务必修改默认值）──
+      # ── 鉴权 ──
       AUTH_JWT_SECRET: "x-media-jwt-change-me-to-random-string"
       AUTH_ADMIN_USER: "admin"
       AUTH_ADMIN_PASS: "admin"
 
-      # ── 数据库 ──
+      # ── 数据库路径（容器内部）──
       DB_PATH: "/app/data/xmedia.db"
 
-      # ── TMDB API（需要你的 Key）──
+      # ── TMDB（图片代理需要，在管理面板配置）──
       TMDB_API_KEY: ""
 
-      # ── Emby / 小雅 Emby ──
-      EMBY_SERVER_URL: "http://192.168.7.1:2345"
-      EMBY_USERNAME: "xiaoya"
-      EMBY_PASSWORD: ""
-
-      # ── 代理（OpenWRT 主路由已翻可不配）──
+      # ── 代理（主路由已翻可不配）──
       PROXY_HTTP: ""
       PROXY_HTTPS: ""
 
-      # ── 日志 ──
+      # ── 日志：debug / info / warn / error ──
       LOG_LEVEL: "debug"
 
+      # ── 主网盘（默认 115，可在面板改）──
+      MAIN_PAN: "115"
+
     volumes:
-      # SQLite 数据库持久化（重启不丢失）
-      - /mnt/APP/x-media-server/data:/app/data
+      # SQLite 数据库
+      - /mnt/IPT-FILES/XXY-FILE/x-media-server/data:/app/data
 
-      # TMDB 图片缓存持久化
-      - /mnt/APP/x-media-server/img_cache:/app/img_cache
-
-      # STRM 输出路径（与 Emby 共享）
-      - /mnt/IPT-FILES/XXY-FILE/Emby/strm:/app/strm
+      # TMDB 图片缓存（LRU 自动淘汰，≤800 张 ≈ 2GB）
+      - /mnt/IPT-FILES/XXY-FILE/x-media-server/img_cache:/app/img_cache
 
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:35678/healthz"]
