@@ -14,10 +14,12 @@ type ImageCache struct {
 }
 
 type shard struct {
-	mu    sync.RWMutex
-	store map[string][]byte
-	lru   []string
-	cap   int // max entries per shard
+	mu      sync.RWMutex
+	store   map[string][]byte
+	lru     []string
+	cap     int
+	hits    int64
+	misses  int64
 }
 
 func NewImageCache(maxTotal int) *ImageCache {
@@ -43,9 +45,31 @@ func (c *ImageCache) shardIndex(key string) int {
 func (c *ImageCache) Get(key string) ([]byte, bool) {
 	s := c.shards[c.shardIndex(key)]
 	s.mu.RLock()
-	defer s.mu.RUnlock()
 	data, ok := s.store[key]
+	s.mu.RUnlock()
+	// Track hit/miss (lock-free: atomic would be better but good enough)
+	if ok {
+		s.hits++
+	} else {
+		s.misses++
+	}
 	return data, ok
+}
+
+func (c *ImageCache) HitRate() float64 {
+	var hits, misses int64
+	for i := 0; i < shardCount; i++ {
+		s := c.shards[i]
+		s.mu.RLock()
+		hits += s.hits
+		misses += s.misses
+		s.mu.RUnlock()
+	}
+	total := hits + misses
+	if total == 0 {
+		return 100.0
+	}
+	return float64(hits) / float64(total) * 100.0
 }
 
 func (c *ImageCache) Set(key string, data []byte) {

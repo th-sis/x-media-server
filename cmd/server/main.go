@@ -29,11 +29,15 @@ func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "15:04:05"})
 
+	// Hook zerolog into ring buffer for admin log viewer
+	zerologHook := &service.ZerologHook{Buffer: service.GlobalLogBuffer()}
+	log.Logger = log.Logger.Hook(zerologHook)
+
 	cfg := config.Load()
 	level, _ := zerolog.ParseLevel(cfg.Log.Level)
 	zerolog.SetGlobalLevel(level)
 
-	log.Info().Str("version", "0.1.0").Msg("X-Media Server booting...")
+	log.Info().Str("version", "0.1.1-alpha").Msg("X-Media Server booting...")
 
 	// ── Database ──
 	db, err := database.Get(&cfg.Database)
@@ -54,6 +58,9 @@ func main() {
 	healthSvc := service.NewHealthService()
 	transferStore := service.NewTransferTaskStore()
 	transferSvc := service.NewTransferService(transferStore)
+
+	// ── System Monitor (10s metrics collection) ──
+	_ = service.NewSystemMonitor(db, cfg.Database.Path, imgCache, service.GlobalSM(), transferStore)
 
 	// ── gRPC Server ──
 	authInterceptor := service.AuthInterceptor(cfg)

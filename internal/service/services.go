@@ -39,6 +39,12 @@ type ClientSession struct {
 
 var globalSM = &SessionManager{}
 
+func GlobalSM() *SessionManager { return globalSM }
+
+var globalLogBuffer = NewLogRingBuffer(1000)
+
+func GlobalLogBuffer() *LogRingBuffer { return globalLogBuffer }
+
 // processKeyQueue consumes remote key events in FIFO order per device.
 // Single goroutine → guaranteed ordering.
 func (cs *ClientSession) processKeyQueue() {

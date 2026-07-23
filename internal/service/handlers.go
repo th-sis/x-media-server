@@ -64,6 +64,12 @@ func RegisterAll(api *mux.Router, cfg *config.Config, db interface{}, state *mod
 
 	// Tasks
 	api.HandleFunc("/tasks", taskHandler.List).Methods("GET")
+
+	// Logs
+	api.HandleFunc("/admin/logs", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(globalLogBuffer.Snapshot())
+	}).Methods("GET")
 }
 
 // ── ConfigHandler (re-written to use ImageCache, not Store) ──
@@ -115,13 +121,21 @@ func (h *ConfigHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	emby, _ := database.GetSetting("emby_server_url")
 	pan115, _ := database.GetSetting("pan115_cookie")
 	openlist, _ := database.GetSetting("openlist_token")
-	json.NewEncoder(w).Encode(map[string]string{
-		"server":  "running", "version": "0.1.0",
+
+	result := map[string]interface{}{
+		"server":  "running", "version": "0.1.1-alpha",
 		"tmdb":     boolToStatus(tmdb != ""),
 		"emby":     boolToStatus(emby != ""),
 		"pan115":   boolToStatus(pan115 != ""),
 		"openlist": boolToStatus(openlist != ""),
-	})
+	}
+	// Merge real-time monitor data if available
+	if m := GlobalMonitor(); m != nil {
+		for k, v := range m.Snapshot() {
+			result[k] = v
+		}
+	}
+	json.NewEncoder(w).Encode(result)
 }
 
 func boolToStatus(ok bool) string {

@@ -114,7 +114,7 @@ async function showPage(p){
     else if(p==='pansearch')await renderPanSearch(m);
     else if(p==='storage')await renderStorage(m);
     else if(p==='tasks')await renderTasks(m);
-    else if(p==='logs')renderLogs(m);
+    else if(p==='logs')await renderLogs(m);
   }catch(e){m.innerHTML='<div style="text-align:center;padding:60px"><h3 style="color:var(--red)">⚠ 加载失败</h3><p style="color:var(--muted);font-size:14px">错误: '+e.message+'</p><p style="color:var(--muted);font-size:13px">请检查后端服务是否正常运行</p><button class="btn btn-secondary" onclick="showPage(\''+p+'\')" style="margin-top:12px">🔄 重试</button></div>'}
 }
 document.querySelectorAll('.nav').forEach(function(n){n.addEventListener('click',function(){showPage(n.dataset.page)})});
@@ -344,10 +344,25 @@ function taskList(items){return items.length?items.map(function(t){return'<div s
 
 /* ====== LOGS ====== */
 function renderLogs(m){
-  m.innerHTML='<h1>系统日志</h1><div class="card">'+
-    '<p style="color:var(--muted)">使用以下命令查看实时日志：</p>'+
-    '<code style="background:var(--panel);padding:8px 14px;border-radius:8px;display:block;margin:8px 0;font-size:13px">docker logs -f x-media-server</code>'+
-    '<p style="color:var(--muted)">或设置 <code>LOG_LEVEL=debug</code> 环境变量后重启容器查看详细日志。</p></div>';
+  m.innerHTML='<h1>系统日志</h1><div class="card"><div id="log-container" style="font-family:monospace;font-size:12px;max-height:600px;overflow-y:auto;background:var(--panel);border-radius:12px;padding:12px"><p style="color:var(--muted)">加载中...</p></div><p style="font-size:12px;color:var(--muted);margin-top:8px">每2秒自动刷新 · 最近100条 · 也可用 <code>docker logs -f x-media-server</code></p></div>';
+  refreshLogs();
+  if(window._logTimer)clearInterval(window._logTimer);
+  window._logTimer=setInterval(refreshLogs,2000);
+}
+async function refreshLogs(){
+  var r=await get('/admin/logs');
+  if(r._error)return;
+  var el=document.getElementById('log-container');
+  if(!el)return;
+  el.innerHTML=r.slice(-100).map(function(e){
+    var c='#aaa';
+    if(e.l==='info')c='#9cdcfe';
+    else if(e.l==='warn')c='#ffd600';
+    else if(e.l==='error'||e.l==='fatal')c='#ff4444';
+    else if(e.l==='debug')c='#666';
+    return'<div style="line-height:1.6"><span style="color:#666">'+e.t+'</span> <span style="color:'+c+'">'+e.l.toUpperCase()+'</span> '+e.m+'</div>'
+  }).join('')||'<p style="color:var(--muted)">暂无日志</p>';
+  el.scrollTop=el.scrollHeight;
 }
 
 // Init

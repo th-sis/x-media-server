@@ -97,13 +97,23 @@ func runPingTest(conn *grpc.ClientConn, token string) {
 	stream := openControlStream(conn, token)
 	defer stream.CloseSend()
 
+	go func() {
+		for {
+			resp, err := stream.Recv()
+			if err != nil {
+				return
+			}
+			handleResponse(resp)
+		}
+	}()
+
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	seq := int64(0)
+	seq := int64(1)
 	for {
 		select {
 		case <-sigCh:
@@ -111,7 +121,7 @@ func runPingTest(conn *grpc.ClientConn, token string) {
 			return
 		case <-ticker.C:
 			seq++
-			err := stream.Send(&pb.ControlRequest{
+			stream.Send(&pb.ControlRequest{
 				SequenceId: seq,
 				Payload: &pb.ControlRequest_Ping{
 					Ping: &pb.PingPayload{
@@ -120,10 +130,6 @@ func runPingTest(conn *grpc.ClientConn, token string) {
 					},
 				},
 			})
-			if err != nil {
-				log("⚠ Send error: %v", err)
-				return
-			}
 		}
 	}
 }
