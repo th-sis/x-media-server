@@ -27,9 +27,7 @@ RUN apk add --no-cache ca-certificates tzdata curl
 
 WORKDIR /app
 COPY --from=builder /x-media-server .
-
-# No web/ folder needed — admin.html is embedded in binary
-RUN chmod +x /x-media-server
+RUN chmod +x ./x-media-server
 
 EXPOSE 50051 35678
 
