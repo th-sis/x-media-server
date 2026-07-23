@@ -1,15 +1,7 @@
 # ══════════════════════════════════════════════════════════════
 # X-Media Server v0.2.0 — TrueNAS SCALE 25.10 (Goldeye)
 #
-# 全栈一体化交付: 一键部署 → 一个面板 → 零碎片配置
-# ============================================================
-# Sidecar 清单:
-#   openlist  — 存储抽象层（115/夸克/阿里/123/PikPak 统一管理）
-#   pansou    — 盘搜聚合代理（透传外部搜索 API，配置收拢到面板）
-#
-# 用户只需在 x-media 管理面板配置:
-#   ① TMDB API Key   ② OpenList Token   ③ 115 扫码登录
-#   ④ 盘搜引擎（BaseURL/Headers/Regex 可热编辑）
+# 一键部署: Apps → Discover → Custom App → 粘贴此文件
 # ══════════════════════════════════════════════════════════════
 
 services:
@@ -22,17 +14,9 @@ services:
     ports:
       - "5244:5244"
     environment:
-      # 配置收拢：管理密码由主编排注入，用户无需单独进 OpenList 后台
       OPENLIST_PORT: "5244"
-      # OPENLIST_ADMIN_TOKEN 由我们面板统一管理，消除碎片化
     volumes:
       - /mnt/IPT-FILES/XXY-FILE/x-media-server/openlist/data:/opt/openlist/data
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:5244/api/public/health"]
-      interval: 30s
-      timeout: 5s
-      start_period: 15s
-      retries: 3
 
   # ── X-Media Server (Go 后端 + 管理面板) ──
   x-media-server:
@@ -40,8 +24,7 @@ services:
     container_name: x-media-server
     restart: unless-stopped
     depends_on:
-      openlist:
-        condition: service_healthy
+      - openlist
 
     user: "568:568"
 
@@ -58,7 +41,6 @@ services:
       AUTH_ADMIN_PASS: "admin"
       DB_PATH: "/app/data/xmedia.db"
       TMDB_API_KEY: ""
-      # 配置下沉：OpenList 地址由环境变量注入，面板可热改
       OPENLIST_URL: "http://openlist:5244"
       PROXY_HTTP: ""
       PROXY_HTTPS: ""
