@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"net/url"
 
 	"github.com/gorilla/mux"
 
@@ -228,10 +229,11 @@ func (h *PanHandler) QRStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	qrSessions[result.UID] = result
+	qrImgURL := "https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=" + url.QueryEscape(result.QRImage)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"ok":       true,
 		"uid":      result.UID,
-		"qr_image": result.QRImage,
+		"qr_image": qrImgURL,
 		"hint":     "请在 115 手机 App 中扫描二维码",
 	})
 }

@@ -277,7 +277,7 @@ async function savePan(name){
   await post('/settings',body);toast(name+' 设置已保存','success')
 }
 async function testPan(name){var r=await post('/test/pan',{type:name});var s=document.getElementById(name+'-status');if(s)s.innerHTML=r.ok?'<span class="badge badge-ok">✓ 连接成功</span>':'<span class="badge badge-err">✗ '+(r.error||'连接失败')+'</span>'}
-async function qrLogin115(){var r=await post('/pan115/qr/start',{});toast('请用手机 115 App 扫描终端显示的二维码','success')}
+async function qrLogin115(){var r=await post('/pan115/qr/start',{});if(r.ok){var img='<div style="text-align:center;padding:20px"><img src="'+r.qr_image+'" style="max-width:256px;border-radius:12px" onerror="this.onerror=null;this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22256%22 height=%22256%22><rect fill=%22%23111%22 width=%22256%22 height=%22256%22/><text fill=%22%23888%22 x=%22128%22 y=%22128%22 text-anchor=%22middle%22 font-size=%2214%22>二维码加载失败</text></svg>\'"><p style="color:var(--muted);font-size:13px;margin-top:12px">请在 115 手机 App 中扫描二维码</p><p style="color:var(--muted);font-size:11px">扫码后等待 3 秒，系统自动检测登录状态</p></div>';document.getElementById('pan-content').innerHTML+=img;setTimeout(async function(){var s=await post('/pan115/qr/check',{uid:r.uid});if(s.ok&&s.status==2){toast('✓ 115 登录成功','success');showPage('pan')}else if(s.status==1){toast('已扫描，请确认登录','success')}},5000)}else{toast('❌ '+r.error,'error')}}
 async function refresh115Space(){var r=await get('/pan115/space');document.getElementById('pan115-used').textContent=r.used||'--';document.getElementById('pan115-total').textContent=r.total||'--';toast('空间已刷新','success')}
 
 /* ====== PANSEARCH ====== */
