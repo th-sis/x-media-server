@@ -154,37 +154,23 @@ func migrate(db *sql.DB) error {
 		CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id, enabled);
 
 		-- Transfer tasks (async pan transfer queue)
-	CREATE TABLE IF NOT EXISTS transfer_tasks (
-		id            INTEGER PRIMARY KEY AUTOINCREMENT,
-		media_id      TEXT NOT NULL,
-		source_url    TEXT NOT NULL,
-		source_pan    TEXT NOT NULL DEFAULT '',
-		status        TEXT NOT NULL DEFAULT 'pending',
-		progress      INTEGER NOT NULL DEFAULT 0,
-		result_url    TEXT NOT NULL DEFAULT '',
-		error_msg     TEXT NOT NULL DEFAULT '',
-		created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-		completed_at  TEXT
-	);
-	CREATE INDEX IF NOT EXISTS idx_transfer_media ON transfer_tasks(media_id);
+		CREATE TABLE IF NOT EXISTS transfer_tasks (
+			id            INTEGER PRIMARY KEY AUTOINCREMENT,
+			media_id      TEXT NOT NULL,
+			source_url    TEXT NOT NULL,
+			source_pan    TEXT NOT NULL DEFAULT '',
+			status        TEXT NOT NULL DEFAULT 'pending',
+			progress      INTEGER NOT NULL DEFAULT 0,
+			result_url    TEXT NOT NULL DEFAULT '',
+			error_msg     TEXT NOT NULL DEFAULT '',
+			created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+			completed_at  TEXT
+		);
+		CREATE INDEX IF NOT EXISTS idx_transfer_media ON transfer_tasks(media_id);
+		CREATE INDEX IF NOT EXISTS idx_transfer_status ON transfer_tasks(status);  -- SystemMonitor 10s 周期扫描 pending/downloading 任务
 
-	-- Search engine registry
-	CREATE TABLE IF NOT EXISTS search_engines (
-		id          INTEGER PRIMARY KEY AUTOINCREMENT,
-		name        TEXT NOT NULL UNIQUE,
-		url         TEXT NOT NULL,
-		enabled     INTEGER NOT NULL DEFAULT 1,
-		latency_ms  INTEGER NOT NULL DEFAULT 0,
-		success_pct INTEGER NOT NULL DEFAULT 0
-	);
-
-	-- Seed default search engines
-	INSERT OR IGNORE INTO search_engines (name, url, enabled) VALUES ('Pansou', 'https://pansou.com/search', 1);
-	INSERT OR IGNORE INTO search_engines (name, url, enabled) VALUES ('猫狸盘搜', 'https://www.maolipansou.com/search', 1);
-	INSERT OR IGNORE INTO search_engines (name, url, enabled) VALUES ('Go-Pansearch', 'https://go-pansearch.example.com/api', 1);
-
-	-- Seed default admin user
-	INSERT OR IGNORE INTO admin_users (username, password) VALUES ('admin', 'admin');
+		-- Seed default admin user
+		INSERT OR IGNORE INTO admin_users (username, password) VALUES ('admin', 'admin');
 	`
 	if _, err := db.Exec(schema); err != nil {
 		return err
