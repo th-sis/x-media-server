@@ -4,6 +4,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 // Config is the global configuration loaded from environment variables.
@@ -95,7 +97,7 @@ type TransferConfig struct {
 }
 
 func Load() *Config {
-	return &Config{
+	cfg := &Config{
 		Server: ServerConfig{
 			GRPCPort:    envOr("SERVER_GRPC_PORT", ":50051"),
 			HTTPPort:    envOr("SERVER_HTTP_PORT", ":35678"),
@@ -112,9 +114,9 @@ func Load() *Config {
 			AdminPassword:   envOr("AUTH_ADMIN_PASS", "admin"),
 		},
 		TMDB: TMDBConfig{
-				APIKey:       os.Getenv("TMDB_API_KEY"),
-				ImageBaseURL: "https://image.tmdb.org/t/p",
-			},
+			APIKey:       os.Getenv("TMDB_API_KEY"),
+			ImageBaseURL: "https://image.tmdb.org/t/p",
+		},
 		Emby: EmbyConfig{
 			ServerURL: envOr("EMBY_SERVER_URL", "http://192.168.7.1:2345"),
 			Username:  envOr("EMBY_USERNAME", "xiaoya"),
@@ -139,6 +141,45 @@ func Load() *Config {
 			Threshold:    envFloat("PAN115_THRESHOLD", 10),
 		},
 	}
+	cfg.LogConfigIssues()
+	return cfg
+}
+
+// LogConfigIssues prints explicit warnings for required-but-missing env vars.
+// Called once at startup so operators immediately know what's misconfigured
+// instead of discovering missing keys via cryptic 401s at runtime.
+func (c *Config) LogConfigIssues() {
+	if c.TMDB.APIKey == "" {
+		log.Warn().Msg("⚠ TMDB_API_KEY is empty — TMDB metadata lookup / 健康检查网络类会失败。建议在 .env 设置 TMDB_API_KEY=<your_key>")
+	} else {
+		log.Info().Str("key_prefix", maskPrefix(c.TMDB.APIKey)).Msg("✅ TMDB API Key loaded")
+	}
+
+	if c.Auth.JWTSecret == "x-media-default-jwt-secret-change-me" {
+		log.Warn().Msg("⚠ AUTH_JWT_SECRET using default value — 生产环境必须改为强随机字符串")
+	}
+	if c.Auth.AdminPassword == "admin" {
+		log.Warn().Msg("⚠ AUTH_ADMIN_PASS=admin — 生产环境必须修改")
+	}
+	if c.OpenListProxyURL() == "" {
+		log.Info().Msg("ℹ OPENLIST_URL 未配置 — 网盘调度走 sidecar DNS（http://openlist:5244），需 docker compose")
+	}
+}
+
+// OpenListProxyURL returns the base URL for talking to the OpenList sidecar.
+// Empty means "use compose service discovery" — caller should fall back to http://openlist:5244.
+func (c *Config) OpenListProxyURL() string {
+	if v := strings.TrimSpace(os.Getenv("OPENLIST_URL")); v != "" {
+		return v
+	}
+	return ""
+}
+
+func maskPrefix(s string) string {
+	if len(s) <= 6 {
+		return "***"
+	}
+	return s[:4] + "***"
 }
 
 func envOr(key, def string) string {
