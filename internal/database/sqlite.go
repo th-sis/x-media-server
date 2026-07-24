@@ -98,18 +98,62 @@ func migrate(db *sql.DB) error {
 	);
 
 	-- Playback history (resume position per media)
-	CREATE TABLE IF NOT EXISTS play_history (
-		id         INTEGER PRIMARY KEY AUTOINCREMENT,
-		user_id    TEXT NOT NULL DEFAULT 'admin',
-		media_id   TEXT NOT NULL,
-		title      TEXT NOT NULL DEFAULT '',
-		position   INTEGER NOT NULL DEFAULT 0,
-		duration   INTEGER NOT NULL DEFAULT 0,
-		updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-	);
-	CREATE INDEX IF NOT EXISTS idx_play_history_user ON play_history(user_id, media_id);
+		CREATE TABLE IF NOT EXISTS play_history (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id    TEXT NOT NULL DEFAULT 'admin',
+			media_id   TEXT NOT NULL,
+			title      TEXT NOT NULL DEFAULT '',
+			position   INTEGER NOT NULL DEFAULT 0,
+			duration   INTEGER NOT NULL DEFAULT 0,
+			updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_play_history_user ON play_history(user_id, media_id);
 
-	-- Transfer tasks (async pan transfer queue)
+		-- ── MediaService: Playlists / Favorites / Subscriptions (P0-2) ──
+
+		CREATE TABLE IF NOT EXISTS playlists (
+			id          INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id     TEXT NOT NULL DEFAULT 'admin',
+			name        TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			cover_url   TEXT NOT NULL DEFAULT '',
+			created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+			updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_playlists_user ON playlists(user_id);
+
+		CREATE TABLE IF NOT EXISTS playlist_items (
+			playlist_id INTEGER NOT NULL,
+			media_id    TEXT    NOT NULL,
+			position    INTEGER NOT NULL DEFAULT 0,
+			added_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+			PRIMARY KEY (playlist_id, media_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_playlist_items_playlist ON playlist_items(playlist_id);
+		CREATE INDEX IF NOT EXISTS idx_playlist_items_media ON playlist_items(media_id);  -- 反向查询：media 出现在哪些 playlist
+
+		CREATE TABLE IF NOT EXISTS favorites (
+			user_id    TEXT NOT NULL DEFAULT 'admin',
+			media_id   TEXT NOT NULL,
+			media_type INTEGER NOT NULL DEFAULT 0,  -- MediaType enum (0=UNSPECIFIED,1=MOVIE,...)
+			title      TEXT NOT NULL DEFAULT '',
+			added_at   TEXT NOT NULL DEFAULT (datetime('now')),
+			PRIMARY KEY (user_id, media_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id, added_at DESC);
+
+		CREATE TABLE IF NOT EXISTS subscriptions (
+			user_id    TEXT NOT NULL DEFAULT 'admin',
+			media_id   TEXT NOT NULL,
+			title      TEXT NOT NULL DEFAULT '',
+			enabled    INTEGER NOT NULL DEFAULT 1,
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+			PRIMARY KEY (user_id, media_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id, enabled);
+
+		-- Transfer tasks (async pan transfer queue)
 	CREATE TABLE IF NOT EXISTS transfer_tasks (
 		id            INTEGER PRIMARY KEY AUTOINCREMENT,
 		media_id      TEXT NOT NULL,

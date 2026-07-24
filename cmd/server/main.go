@@ -52,7 +52,7 @@ func main() {
 
 	// ── Services ──
 	authSvc := service.NewAuthService(cfg, db)
-	mediaSvc := &service.MediaService{}
+	mediaSvc := service.NewMediaService(db)
 	playbackSvc := service.NewPlaybackService()
 	contentSvc := &service.ContentService{}
 	healthSvc := service.NewHealthService()

@@ -426,53 +426,8 @@ func (s *ContentService) GetExploreFeed(ctx context.Context, req *pb.GetExploreF
 }
 
 // ═══════════════════════════════════════════════════════════
-// MediaService + HealthService (stubs)
+// HealthService
 // ═══════════════════════════════════════════════════════════
-
-type MediaService struct {
-	db *sql.DB
-	pb.UnimplementedMediaServiceServer
-}
-
-func (s *MediaService) ListPlaylists(ctx context.Context, req *pb.ListPlaylistsRequest) (*pb.ListPlaylistsResponse, error) {
-	return &pb.ListPlaylistsResponse{}, nil
-}
-func (s *MediaService) GetPlaylist(ctx context.Context, req *pb.GetPlaylistRequest) (*pb.Playlist, error) {
-	return &pb.Playlist{}, nil
-}
-func (s *MediaService) CreatePlaylist(ctx context.Context, req *pb.CreatePlaylistRequest) (*pb.Playlist, error) {
-	return &pb.Playlist{}, nil
-}
-func (s *MediaService) UpdatePlaylist(ctx context.Context, req *pb.UpdatePlaylistRequest) (*pb.Playlist, error) {
-	return &pb.Playlist{}, nil
-}
-func (s *MediaService) DeletePlaylist(ctx context.Context, req *pb.DeletePlaylistRequest) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, nil
-}
-func (s *MediaService) AddMediaToPlaylist(ctx context.Context, req *pb.AddMediaToPlaylistRequest) (*pb.Playlist, error) {
-	return &pb.Playlist{}, nil
-}
-func (s *MediaService) RemoveMediaFromPlaylist(ctx context.Context, req *pb.RemoveMediaFromPlaylistRequest) (*pb.Playlist, error) {
-	return &pb.Playlist{}, nil
-}
-func (s *MediaService) ListFavorites(ctx context.Context, req *pb.ListFavoritesRequest) (*pb.ListFavoritesResponse, error) {
-	return &pb.ListFavoritesResponse{}, nil
-}
-func (s *MediaService) AddFavorite(ctx context.Context, req *pb.AddFavoriteRequest) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, nil
-}
-func (s *MediaService) RemoveFavorite(ctx context.Context, req *pb.RemoveFavoriteRequest) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, nil
-}
-func (s *MediaService) ListSubscriptions(ctx context.Context, req *pb.ListSubscriptionsRequest) (*pb.ListSubscriptionsResponse, error) {
-	return &pb.ListSubscriptionsResponse{}, nil
-}
-func (s *MediaService) Subscribe(ctx context.Context, req *pb.SubscribeRequest) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, nil
-}
-func (s *MediaService) Unsubscribe(ctx context.Context, req *pb.UnsubscribeRequest) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, nil
-}
 
 type HealthService struct {
 	startTime time.Time
